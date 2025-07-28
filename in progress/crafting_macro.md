@@ -1,0 +1,1 @@
+!craft --item "?{Item Name|Wand of Wonder}" --rarity ?{Rarity|common|uncommon|rare|very rare|legendary} --qualities ?{Resource Qualities (comma separated)|20,20} ?{Proficient Helper?|No,|Yes,--adv} --bonus ?{Other Bonuses (tools, location, etc.)|0}
