@@ -183,13 +183,18 @@ on('chat:message', function(msg) {
                     let attackRoll = ops[0].inlinerolls[0].results.total;
                     let nat20 = ops[0].inlinerolls[0].results.rolls[0].results[0].v === 20;
                     let hit = attackRoll >= ac;
-                    let resultText = hit ? (nat20 ? '**CRITICAL HIT**' : '**HIT**') : '**MISS**';
+                    // Check for critical immunity
+                    let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
+                    let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                    let isCritImmune = immunities.includes('criticals');
+                    let isCritical = nat20 && !isCritImmune;
+                    let resultText = hit ? (nat20 ? (isCritImmune ? '**HIT**' : '**CRITICAL HIT**') : '**HIT**') : '**MISS**';
                     let damageText = '';
                     let damageAmount = 0;
                     // Determine damage expression for crits
                     let critDamageExpr = damageExpr;
                     if (hit) {
-                        if (nat20) {
+                        if (isCritical) {
                             // Double the number of dice for crits
                             critDamageExpr = doubleDiceExpression(damageExpr);
                         }
@@ -214,16 +219,16 @@ on('chat:message', function(msg) {
                                 }
                             }
                             let resistAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0];
-                            let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
+                            let immuneAttr2 = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
                             let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                            let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                            let immunities2 = immuneAttr2 ? (immuneAttr2.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
                             let resistText = '';
-                            if (immunities.includes(damageType)) {
+                            if (immunities2.includes(damageType)) {
                                 resistText = '[immunity]';
                             } else if (resistances.includes(damageType)) {
                                 resistText = '[resistance]';
                             }
-                            let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})` + (nat20 ? ' (critical)' : '');
+                            let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})` + (isCritical ? ' (critical)' : (nat20 && isCritImmune ? ' (no crit: immune)' : ''));
                             let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
                             let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs AC ${ac}<br>**Result:** ${resultText}<br>${damageText}<br>${appliedText}}}`;
                             sendChat('MonsterAttack', output);
