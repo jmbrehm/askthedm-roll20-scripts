@@ -1,4 +1,8 @@
+
 # Roll20 API Scripts & Macros
+
+**AI Copilot Notice:**
+These scripts were developed with the assistance of GitHub Copilot (AI Copilot), an AI programming assistant, to help automate, debug, and enhance Roll20 gameplay automation.
 
 This repository contains custom API scripts and macros designed to enhance and automate various aspects of gameplay on Roll20. These tools are tailored for my own campaigns but may be useful to others looking to streamline their Roll20 experience.
 
