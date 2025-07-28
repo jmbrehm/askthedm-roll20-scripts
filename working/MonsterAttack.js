@@ -60,36 +60,91 @@ function parseCR(crVal) {
     return null;
 }
 
-function generateDiceExpression(targetDamage) {
+function generateDiceExpression(targetDamage, isAttack = false) {
     if (targetDamage <= 1) return "1";
-    // Always use a modifier equal to 25% of the target (rounded)
-    const modifier = Math.round(targetDamage * 0.25);
-    const diceTarget = targetDamage - modifier;
-    const diceOptions = [
-        { die: 12, avg: 6.5 },
-        { die: 10, avg: 5.5 },
-        { die: 8, avg: 4.5 },
-        { die: 6, avg: 3.5 },
-        { die: 4, avg: 2.5 }
+    if (!isAttack) {
+        // New logic for spells: only dice, no modifiers, up to max dice for each type
+        const spellDiceOptions = [
+            { die: 10, max: 8, avg: 5.5 },
+            { die: 8, max: 8, avg: 4.5 },
+            { die: 6, max: 20, avg: 3.5 },
+            { die: 4, max: 20, avg: 2.5 }
+        ];
+        let best = null;
+        let minDiff = Number.POSITIVE_INFINITY;
+        for (const option of spellDiceOptions) {
+            for (let numDice = 1; numDice <= option.max; numDice++) {
+                const diceTotal = numDice * option.avg;
+                let diff = targetDamage - diceTotal;
+                if (diff < 0) continue;
+                if (best === null || diff < minDiff || (diff === minDiff && numDice > best.num)) {
+                    best = { num: numDice, die: option.die, total: diceTotal };
+                    minDiff = diff;
+                }
+            }
+        }
+        if (best) {
+            return `${best.num}d${best.die}`;
+        }
+        // Fallback
+        return "1d4";
+    }
+    // New logic for attacks: only allow specific dice formulas
+    const allowedDice = [
+        { num: 1, die: 12, avg: 6.5 },
+        { num: 1, die: 10, avg: 5.5 },
+        { num: 2, die: 8, avg: 9 },
+        { num: 1, die: 8, avg: 4.5 },
+        { num: 2, die: 6, avg: 7 },
+        { num: 1, die: 6, avg: 3.5 },
+        { num: 3, die: 4, avg: 7.5 },
+        { num: 2, die: 4, avg: 5 },
+        { num: 1, die: 4, avg: 2.5 }
     ];
-    for (const option of diceOptions) {
-        // Find the smallest number of dice (with this die size) whose average plus modifier is >= targetDamage
-        for (let numDice = 1; numDice <= 20; numDice++) {
-            const diceTotal = numDice * option.avg;
-            if (diceTotal + modifier >= targetDamage) {
-                return modifier > 0 ? `${numDice}d${option.die}+${modifier}` : `${numDice}d${option.die}`;
+    let best = null;
+    let minDiff = Number.POSITIVE_INFINITY;
+    const minMod = Math.ceil(targetDamage * 0.25);
+    for (const dice of allowedDice) {
+        let baseMod = minMod;
+        let diceVal = dice.avg;
+        let total = diceVal + baseMod;
+        if (total > targetDamage) {
+            // If even the minimum mod puts us over, skip
+            continue;
+        }
+        // Increase modifier to get as close as possible without going over
+        let neededMod = Math.floor(targetDamage - diceVal);
+        if (neededMod < baseMod) neededMod = baseMod;
+        let finalTotal = diceVal + neededMod;
+        let diff = targetDamage - finalTotal;
+        if (diff < 0) continue;
+        if (best === null || diff < minDiff || (diff === minDiff && neededMod < best.mod)) {
+            best = { num: dice.num, die: dice.die, mod: neededMod };
+            minDiff = diff;
+        }
+    }
+    // If nothing fit, pick the one with the highest total under target
+    if (!best) {
+        let maxTotal = -1;
+        for (const dice of allowedDice) {
+            let baseMod = minMod;
+            let diceVal = dice.avg;
+            let total = diceVal + baseMod;
+            if (total > maxTotal && total < targetDamage) {
+                best = { num: dice.num, die: dice.die, mod: baseMod };
+                maxTotal = total;
             }
         }
     }
-    // Fallback to d6s
-    for (let numD6 = 1; numD6 <= 20; numD6++) {
-        const diceTotal = numD6 * 3.5;
-        if (diceTotal + modifier >= targetDamage) {
-            return modifier > 0 ? `${numD6}d6+${modifier}` : `${numD6}d6`;
+    if (best) {
+        if (best.mod > 0) {
+            return `${best.num}d${best.die}+${best.mod}`;
+        } else {
+            return `${best.num}d${best.die}`;
         }
     }
-    // If all else fails, just return 1d6
-    return "1d6";
+    // Fallback
+    return "1d4";
 }
 
 on('chat:message', function(msg) {
@@ -159,7 +214,7 @@ on('chat:message', function(msg) {
         let actionsUsed = parseInt(args.attacks) || 1;
         // Total damage for this attack
         let attackDamage = damagePerAction * actionsUsed;
-        let damageExpr = generateDiceExpression(attackDamage);
+        let damageExpr = generateDiceExpression(attackDamage, args.type === 'Attack');
         let results = [];
         playerTokens.forEach(({ token: playerToken, character: playerChar }) => {
             if (args.type === 'Attack') {
@@ -193,10 +248,14 @@ on('chat:message', function(msg) {
                     let damageAmount = 0;
                     // Determine damage expression for crits
                     let critDamageExpr = damageExpr;
+                    let critFormula = damageExpr;
+                    let diceLine = `**Dice:** ${critFormula}`;
                     if (hit) {
                         if (isCritical) {
                             // Double the number of dice for crits
                             critDamageExpr = doubleDiceExpression(damageExpr);
+                            critFormula = critDamageExpr;
+                            diceLine = `**Dice:** ${critFormula} (critical)`;
                         }
                         sendChat('', `/w gm [[${critDamageExpr}]]`, function(dmgOps) {
                             let rolledDamage = dmgOps[0].inlinerolls[0].results.total;
@@ -228,13 +287,13 @@ on('chat:message', function(msg) {
                             } else if (resistances.includes(damageType)) {
                                 resistText = '[resistance]';
                             }
-                            let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})` + (isCritical ? ' (critical)' : (nat20 && isCritImmune ? ' (no crit: immune)' : ''));
+                            let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})`;
                             let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
-                            let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs AC ${ac}<br>**Result:** ${resultText}<br>${damageText}<br>${appliedText}}}`;
+                            let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs. AC ${ac}<br>**Result:** ${resultText}<br>${diceLine}<br>${damageText}<br>${appliedText}}}`;
                             sendChat('MonsterAttack', output);
                         });
                     } else {
-                        let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs AC ${ac}<br>**Result:** ${resultText}}}`;
+                        let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs. AC ${ac}<br>**Result:** ${resultText}}}`;
                         sendChat('MonsterAttack', output);
                     }
                 });
@@ -258,6 +317,7 @@ function doubleDiceExpression(expr) {
                 let saveAttr = findObjs({type:'attribute', characterid:playerChar.id, name: saveAttrName})[0];
                 let saveMod = saveAttr ? parseInt(saveAttr.get('current')) : 0;
                 let saveRollExpr = `1d20+${saveMod}`;
+                let diceLine = `**Dice:** ${damageExpr}`;
                 sendChat('', `/w gm [[${saveRollExpr}]]`, function(ops) {
                     let saveRoll = ops[0].inlinerolls[0].results.total;
                     let success = saveRoll >= saveDC;
@@ -312,11 +372,11 @@ function doubleDiceExpression(expr) {
                                 }
                                 let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'}) (half damage)`;
                                 let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
-                                let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs DC ${saveDC}<br>**Result:** ${resultText}<br>${damageText}<br>${appliedText}}}`;
+                                let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs. DC ${saveDC}<br>**Result:** ${resultText}<br>${diceLine}<br>${damageText}<br>${appliedText}}}`;
                                 sendChat('MonsterAttack', output);
                             });
                         } else {
-                            let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs DC ${saveDC}<br>**Result:** ${resultText}}}`;
+                            let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs. DC ${saveDC}<br>**Result:** ${resultText}<br>${diceLine}}}`;
                             sendChat('MonsterAttack', output);
                         }
                     } else {
@@ -352,7 +412,7 @@ function doubleDiceExpression(expr) {
                             }
                             let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})`;
                             let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
-                            let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs DC ${saveDC}<br>**Result:** ${resultText}<br>${damageText}<br>${appliedText}}}`;
+                            let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs. DC ${saveDC}<br>**Result:** ${resultText}<br>${diceLine}<br>${damageText}<br>${appliedText}}}`;
                             sendChat('MonsterAttack', output);
                         });
                     }

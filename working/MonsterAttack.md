@@ -1,13 +1,3 @@
-# MonsterAttack Macro for Roll20 (with Poison Damage)
-
-Use this macro to prompt for attack details and run the MonsterAttack.js API script.
-
-Paste this into a Roll20 macro:
-
-```
-!monsterattack --type ?{Attack Type|Attack,Attack|Spell,Spell} --resist ?{Resist|None,None|Half,Half} --primary ?{Primary Damage|bludgeoning|piercing|slashing|fire|cold|lightning|acid|thunder|force|poison|radiant|necrotic} --secondary ?{Secondary Damage|none|bludgeoning|piercing|slashing|fire|cold|lightning|acid|thunder|force|poison|radiant|necrotic} --attacks ?{Number of Attacks|1|2|3|4|5|6|7}
-```
-
 ## MonsterAttack Macro Usage
 
 Use this macro to trigger a monster attack using the MonsterAttack.js API script. This macro will prompt you for all required information:
