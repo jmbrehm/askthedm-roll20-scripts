@@ -30,7 +30,7 @@ Scripts in the `working` folder are stable and ready for use. Click a script nam
 Scripts in the `dependencies` folder provide data or reference tables used by the main automation scripts:
 
 - **askthedm_CR_attribute_reference.js**: Provides the mapping of Challenge Rating (CR) to XP values and other monster stat references.
-- **askthedm_DamageToSave_reference.js**: Maps damage types to their default saving throw abilities for use in trap and spell automation.
+- **askthedm_DamageToEffect_reference.js**: Maps damage types to their default saving throw abilities and visual effect components for use in trap and spell automation.
 - **askthedm_item_reference.js**: Contains tables of magic items by category, rarity, and theme for loot generation scripts.
 
 ---
