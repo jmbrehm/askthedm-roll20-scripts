@@ -218,6 +218,19 @@ function processAttackTrap(token, character, trapStats, params, tokenName, level
                 // Actually apply the damage
                 applyDamage(token, character, appliedDamage, tokenName, isPlayerCharacter);
 
+                // --- Visual Effect Trigger ---
+                // Use built-in 'burn-x' effect, where x is the color from DamageToVEffect for the damage type
+                if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
+                    let vfxColor = globalThis.DamageToVEffect[damageType] || 'blood';
+                    let vfxName = `burn-${vfxColor}`;
+                    let vfxX = token.get('left');
+                    let vfxY = token.get('top');
+                    let vfxPage = token.get('pageid');
+                    // (Debug whisper removed)
+                    spawnFx(vfxX, vfxY, vfxName, vfxPage);
+                }
+                // --- End Visual Effect Trigger ---
+
                 sendChat('Trap System',
                     `&{template:npcaction}{{rname=Trap Triggered!}}{{name=${tokenName}}}{{description=**${trapStats.type.toUpperCase()} Trap (Level ${level})**
 **Attack Roll:** ${attackResult} vs AC ${ac}
@@ -302,6 +315,19 @@ function processSaveTrap(token, character, trapStats, params, tokenName, level) 
                     appliedNote = ' (resistance)';
                 }
             }
+
+
+            // --- Visual Effect Trigger for Save Traps ---
+            // Use 'glow-x' for success, 'burn-x' for failure, x from DamageToVEffect
+            if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
+                let vfxColor = globalThis.DamageToVEffect[params.damageType] || 'blood';
+                let vfxName = success ? `glow-${vfxColor}` : `burn-${vfxColor}`;
+                let vfxX = token.get('left');
+                let vfxY = token.get('top');
+                let vfxPage = token.get('pageid');
+                spawnFx(vfxX, vfxY, vfxName, vfxPage);
+            }
+            // --- End Visual Effect Trigger ---
 
             applyDamage(token, character, appliedDamage, tokenName, isPlayerCharacter);
 
