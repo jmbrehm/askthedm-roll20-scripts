@@ -1,27 +1,32 @@
-!trap trigger --type ?{Trap Type|nuisance|deadly} --method ?{Trap Method|save|attack} --damage ?{Damage Type|fire|bludgeoning|piercing|slashing|cold|lightning|acid|thunder|poison|force|radiant|necrotic}
+!trap trigger --type ?{Trap Type|nuisance|deadly} --method ?{Trap Method|save|attack} --damage ?{Damage Type|bludgeoning|thunder|force|slashing|fire|lightning|acid|radiant|piercing|cold|poison|necrotic|psychic}
 
 <!-- Trap Trigger Macro
-     This macro triggers level-appropriate traps on selected tokens.
-     Character levels are automatically detected from character sheets.
-     
+     This macro triggers a level-appropriate trap on all selected tokens.
+     Character level or CR is automatically detected from the character sheet.
+
      Usage:
-     1. Select one or more tokens (the victims of the trap)
+     1. Select one or more tokens (the trap's targets)
      2. Run this macro
-     3. Choose trap type, method, and damage type
-     4. Script automatically determines stats based on character levels and rolls for each token
-     
+     3. Choose trap type (nuisance or deadly), method (attack or save), and damage type (see below)
+     4. The script determines stats and rolls for each token, scaling with their level/CR
+
      Trap Types:
      • Nuisance - Lower damage, easier saves, minor threat
-     • Deadly - High damage, harder saves, major threat
-     
+     • Deadly - Higher damage, harder saves, major threat
+
      Methods:
-     • Attack - Rolls attack vs AC, full damage on hit
-     • Save - Makes saving throw, half damage on success
-     
-     Automatic Save Types:
-     • Strength saves: bludgeoning, thunder
-     • Dexterity saves: slashing, fire, lightning, acid
-     • Constitution saves: piercing, cold, poison
-     
-     The system automatically scales with each character's individual level using balanced tables.
+     • Attack - Trap rolls to hit vs AC; on hit, full damage is rolled and applied
+     • Save - Target rolls a saving throw; on success, half damage (minimum 1) is applied
+
+     Damage Types (and default save type):
+     • Strength: bludgeoning, thunder, force
+     • Dexterity: slashing, fire, lightning, acid, radiant
+     • Constitution: piercing, cold, poison, necrotic
+     • Wisdom: psychic
+
+     Output:
+     • For attack traps: shows attack roll, result (hit/crit/miss), dice used, damage rolled, and damage applied (with resistance/immunity notes)
+     • For save traps: shows save roll, result (success/failure), dice used, damage rolled, and damage applied (with resistance/immunity notes)
+
+     The system automatically scales with each character's level or CR using balanced tables. Damage is applied to temp HP first (for PCs), then regular HP. Immunities and resistances are detected and shown in the output.
 -->
