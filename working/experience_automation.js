@@ -1,43 +1,7 @@
 // filename: experience_automation.js
 // Automatic experience point calculation and distribution system
 
-// Experience points by Challenge Rating
-const XP_BY_CR = {
-    0: 10,
-    0.125: 25,      // 1/8
-    0.25: 50,       // 1/4
-    0.5: 100,       // 1/2
-    1: 200,
-    2: 450,
-    3: 700,
-    4: 1100,
-    5: 1800,
-    6: 2300,
-    7: 2900,
-    8: 3900,
-    9: 5000,
-    10: 5900,
-    11: 7200,
-    12: 8400,
-    13: 10000,
-    14: 11500,
-    15: 13000,
-    16: 15000,
-    17: 18000,
-    18: 20000,
-    19: 22000,
-    20: 25000,
-    21: 33000,
-    22: 41000,
-    23: 50000,
-    24: 62000,
-    25: 75000,
-    26: 90000,
-    27: 105000,
-    28: 120000,
-    29: 135000,
-    30: 155000
-};
+// Reference XP values from CR_ATTRIBUTE_REFERENCE in askthedm_CR_attribute_reference.js
 
 on('chat:message', function(msg) {
     if (msg.type !== 'api' || !msg.content.startsWith('!xp')) return;
@@ -170,8 +134,15 @@ function getEnemyCR(character) {
 }
 
 function getXPFromCR(cr) {
-    // Look up XP value from CR table
-    return XP_BY_CR[cr] || 0;
+    // Look up XP value from CR_ATTRIBUTE_REFERENCE
+    if (typeof globalThis.CR_ATTRIBUTE_REFERENCE !== 'undefined') {
+        // Try string and numeric keys for CR
+        let crKey = cr.toString();
+        if (globalThis.CR_ATTRIBUTE_REFERENCE[crKey] && globalThis.CR_ATTRIBUTE_REFERENCE[crKey].xp) {
+            return globalThis.CR_ATTRIBUTE_REFERENCE[crKey].xp;
+        }
+    }
+    return 0;
 }
 
 function awardExperienceToCharacter(character, xpAmount, characterName) {
