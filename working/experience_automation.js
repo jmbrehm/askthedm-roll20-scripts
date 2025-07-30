@@ -10,15 +10,8 @@ on('chat:message', function(msg) {
     let args = msg.content.split(' ').slice(1);
     let command = args[0] || '';
 
-    switch(command.toLowerCase()) {
-        case 'award':
-            handleXPAward(msg);
-            break;
-        case 'help':
-            showXPHelp(msg.who);
-            break;
-        default:
-            showXPHelp(msg.who);
+    if (command.toLowerCase() === 'award') {
+        handleXPAward(msg);
     }
 });
 
@@ -212,34 +205,4 @@ ${playerList}`;
     );
 }
 
-function showXPHelp(playerName) {
-    sendChat('XP System', `/w "${playerName}" **Experience Point System Commands:**
-
-• \`!xp award\` - Calculate and award XP from selected tokens
-• \`!xp help\` - Show this help
-
-**Usage:**
-1. Select all tokens from the battle (both PCs and defeated enemies)
-2. Use: \`!xp award\`
-3. Script automatically calculates total XP and distributes it evenly
-
-**Token Requirements:**
-• **Player Characters:** Must have a 'level' attribute
-• **Enemies:** Must have an 'npc_challenge' attribute (CR value)
-
-**Features:**
-• Automatic PC/Enemy detection based on attributes
-• XP calculation based on official D&D 5e CR-to-XP table
-• Even distribution among all participating PCs
-• Automatic experience attribute creation if needed
-• Detailed battle summary with before/after XP totals
-
-**Experience Attribute:**
-The script will look for existing XP attributes in this order:
-1. 'experience'
-2. 'exp' 
-3. 'xp'
-4. 'experience_points'
-
-If none exist, it creates a new 'experience' attribute.`);
-}
+// (Help/documentation removed; see experience_automation_macro.md for usage instructions)
