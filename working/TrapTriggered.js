@@ -178,49 +178,53 @@ function processAttackTrap(token, character, trapStats, params, tokenName, level
     let attackRoll = `1d20+${trapStats.attackBonus}`;
 
     sendChat('', `/w gm [[${attackRoll}]]`, function(ops) {
-        // Extract the d20 roll and total
         let rollData = ops[0].inlinerolls[0];
         let attackResult = rollData.results.total;
-        let d20 = null;
-        // Find the d20 roll in the roll structure
-        if (rollData.results && rollData.results.rolls && rollData.results.rolls.length > 0) {
-            let rollsArr = rollData.results.rolls;
-            for (let i = 0; i < rollsArr.length; i++) {
-                if (rollsArr[i].type === 'V' && rollsArr[i].rolls && rollsArr[i].rolls.length > 0) {
-                    // Find the first d20 in the V roll
-                    for (let j = 0; j < rollsArr[i].rolls.length; j++) {
-                        if (typeof rollsArr[i].rolls[j].v === 'number') {
-                            d20 = rollsArr[i].rolls[j].v;
-                            break;
-                        }
-                    }
-                }
-                if (d20 !== null) break;
-            }
-        }
-        let isCrit = (d20 === 20);
+        // New crit logic: if attackResult - trapStats.attackBonus === 20, it's a crit
+        let isCrit = (attackResult - trapStats.attackBonus === 20);
         let hit = attackResult >= ac;
 
         let result = '';
-
         if (hit) {
-            result = `**HIT!** (${attackResult} vs AC ${ac})`;
+            result = isCrit ? `**CRITICAL HIT!** (${attackResult} vs AC ${ac})` : `**HIT!** (${attackResult} vs AC ${ac})`;
             let damageFormula = trapStats.damage;
             if (isCrit) {
-                // Double the dice for a crit (e.g., 2d10 -> 4d10)
                 damageFormula = doubleDice(trapStats.damage);
             }
-            // Calculate damage and apply it - use single roll for both display and application
             sendChat('', `/w gm [[${damageFormula}]]`, function(damageOps) {
                 let damageAmount = damageOps[0].inlinerolls[0].results.total;
                 let isPlayerCharacter = hasLevelAttribute(character);
-                applyDamage(token, character, damageAmount, tokenName, isPlayerCharacter);
+
+                // Determine resistances/immunities and applied damage
+                let resistAttrName = isPlayerCharacter ? 'pc_resistances' : 'npc_resistances';
+                let immuneAttrName = isPlayerCharacter ? 'pc_immunities' : 'npc_immunities';
+                let resistAttr = findObjs({type:'attribute', characterid:character.id, name:resistAttrName})[0];
+                let immuneAttr = findObjs({type:'attribute', characterid:character.id, name:immuneAttrName})[0];
+                let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                let damageType = params.damageType || '';
+                let appliedDamage = damageAmount;
+                let appliedNote = '';
+                if (damageType) {
+                    if (immunities.includes(damageType)) {
+                        appliedDamage = 0;
+                        appliedNote = ' (immunity)';
+                    } else if (resistances.includes(damageType)) {
+                        appliedDamage = Math.max(1, Math.floor(damageAmount / 2));
+                        appliedNote = ' (resistance)';
+                    }
+                }
+
+                // Actually apply the damage
+                applyDamage(token, character, appliedDamage, tokenName, isPlayerCharacter);
 
                 sendChat('Trap System',
                     `&{template:npcaction}{{rname=Trap Triggered!}}{{name=${tokenName}}}{{description=**${trapStats.type.toUpperCase()} Trap (Level ${level})**
 **Attack Roll:** ${attackResult} vs AC ${ac}
-**Result:** ${result}${isCrit ? ' (CRITICAL HIT!)' : ''}
-**Damage:** ${damageAmount} ${params.damageType} (applied automatically)
+**Result:** ${result}
+**Dice:** ${damageFormula}
+**Damage:** ${damageAmount} ${damageType}
+**Applied:** ${appliedDamage}${appliedNote}
 }}`
                 );
             });
@@ -262,6 +266,7 @@ function processSaveTrap(token, character, trapStats, params, tokenName, level) 
         let success = saveResult >= trapStats.saveDC;
         let result = '';
         let damageFormula = '';
+        let diceDisplay = trapStats.damage;
         if (success) {
             result = `**SUCCESS** (${saveResult} vs DC ${trapStats.saveDC})`;
             // Half damage on successful save, minimum 1
@@ -273,18 +278,40 @@ function processSaveTrap(token, character, trapStats, params, tokenName, level) 
         // Calculate damage with a single roll for both display and application
         sendChat('', `/w gm [[${damageFormula}]]`, function(damageOps) {
             let damageAmount = damageOps[0].inlinerolls[0].results.total;
-            // Apply minimum damage of 1 for successful saves
             if (success && damageAmount < 1) {
                 damageAmount = 1;
             }
             let isPlayerCharacter = hasLevelAttribute(character);
-            applyDamage(token, character, damageAmount, tokenName, isPlayerCharacter);
-            // Use the actual rolled damage amount in the display
+
+            // Determine resistances/immunities and applied damage
+            let resistAttrName = isPlayerCharacter ? 'pc_resistances' : 'npc_resistances';
+            let immuneAttrName = isPlayerCharacter ? 'pc_immunities' : 'npc_immunities';
+            let resistAttr = findObjs({type:'attribute', characterid:character.id, name:resistAttrName})[0];
+            let immuneAttr = findObjs({type:'attribute', characterid:character.id, name:immuneAttrName})[0];
+            let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+            let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+            let damageType = params.damageType || '';
+            let appliedDamage = damageAmount;
+            let appliedNote = '';
+            if (damageType) {
+                if (immunities.includes(damageType)) {
+                    appliedDamage = 0;
+                    appliedNote = ' (immunity)';
+                } else if (resistances.includes(damageType)) {
+                    appliedDamage = Math.max(1, Math.floor(damageAmount / 2));
+                    appliedNote = ' (resistance)';
+                }
+            }
+
+            applyDamage(token, character, appliedDamage, tokenName, isPlayerCharacter);
+
             sendChat('Trap System',
                 `&{template:npcaction}{{rname=Trap Triggered!}}{{name=${tokenName}}}{{description=**${trapStats.type.toUpperCase()} Trap (Level ${level})**
 **${saveType} Save:** ${saveResult} vs DC ${trapStats.saveDC}
 **Result:** ${result}
-**Damage:** ${damageAmount} ${params.damageType} ${success ? '(half damage)' : ''} (applied automatically)
+**Dice:** ${diceDisplay}
+**Damage:** ${damageAmount} ${params.damageType} ${success ? '(half damage)' : ''}
+**Applied:** ${appliedDamage}${appliedNote}
 }}`
             );
         });
