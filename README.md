@@ -10,18 +10,30 @@ This repository contains custom API scripts and macros designed to enhance and a
 
 ---
 
-## Working Scripts
 
-Scripts in the `working` folder are stable and ready for use:
+## Working Scripts (Table of Contents)
 
-- **detection_script.js**: Automates group perception checks for selected tokens, with difficulty prompts and results output to chat.
-- **experience_automation.js**: Calculates and distributes experience points to player characters based on encounters or events.
-- **gathering_resources_script.js**: Handles resource gathering checks and outputs results for selected tokens.
-- **items.js**: This is a catelog of magical items by category; It is required for the loot_generator script to work; can be revised to suit your own campaign
-- **loot_generator.js**: Generates random loot based on monsters in an encounter and outputs loot results to chat.
-- **MonsterAttack.js**: Generates automated Custom monster attacks based on their CR, will attack and automatically apply damage to players (accounts for resistances and successfull saving throws) - targets temporary hp first then hp
-- **Rebalance.js**: Updates Monster CR, HP, and AC for selected monster(s) - very good for working with MonsterAttack.js
-- **trap_reference.js**: Trap Automation for targeting players and allowing you to roll attacks, or automate saving throws and damage application when traps are triggered
+Scripts in the `working` folder are stable and ready for use. Click a script name below to view its macro and documentation:
+
+- [Detection Script](working/detection_macro.md)
+- [Experience Automation](working/experience_automation_macro.md)
+- [Gathering Resources](working/gathering_resources_macro.md)
+- [Loot Generator](working/loot_generator_macro.md)
+- [Monster Attack](working/MonsterAttack.md)
+- [Rebalance](working/Rebalance.md)
+- [Trap Triggered](working/trap_trigger_macro.md)
+
+---
+
+## Dependency Scripts
+
+Scripts in the `dependencies` folder provide data or reference tables used by the main automation scripts:
+
+- **askthedm_CR_attribute_reference.js**: Provides the mapping of Challenge Rating (CR) to XP values and other monster stat references.
+- **askthedm_DamageToSave_reference.js**: Maps damage types to their default saving throw abilities for use in trap and spell automation.
+- **askthedm_item_reference.js**: Contains tables of magic items by category, rarity, and theme for loot generation scripts.
+
+---
 
 ---
 
