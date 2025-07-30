@@ -31,13 +31,13 @@ on('chat:message', function(msg) {
             handleTrapTrigger(msg);
             break;
         case 'reference':
-            showTrapReference(msg.who);
+            // Reference command removed
             break;
         case 'help':
-            showTrapHelp(msg.who);
+            // Help command removed
             break;
         default:
-            showTrapHelp(msg.who);
+            // Default help removed
     }
 });
 
@@ -52,7 +52,7 @@ function handleTrapTrigger(msg) {
     let params = parseTrapCommand(msg.content);
     
     if (!params.type) {
-        sendTrapPrompt(msg.who);
+        // Trap prompt removed
         return;
     }
 
@@ -101,8 +101,8 @@ function getCharacterLevel(character) {
     if (crAttr) {
         let challengeRating = parseFloat(crAttr.get('current'));
         if (!isNaN(challengeRating)) {
-            // Treat any CR less than 1 as level 1, otherwise use CR as level (capped at 20)
-            let level = challengeRating < 1 ? 1 : Math.min(Math.floor(challengeRating), 20);
+            // Treat any CR less than 1 as level 1, otherwise use CR * 4 as effective level (capped at 20)
+            let level = challengeRating < 1 ? 1 : Math.min(Math.floor(challengeRating * 4), 20);
             return level;
         }
     }
@@ -173,29 +173,53 @@ function processAttackTrap(token, character, trapStats, params, tokenName, level
     // Get AC from character sheet
     let acAttr = findObjs({type:'attribute', characterid:character.id, name:'ac'})[0];
     let ac = acAttr ? parseInt(acAttr.get('current'), 10) : 10;
-    
+
     // Make attack roll
     let attackRoll = `1d20+${trapStats.attackBonus}`;
-    
+
     sendChat('', `/w gm [[${attackRoll}]]`, function(ops) {
-        let attackResult = ops[0].inlinerolls[0].results.total;
+        // Extract the d20 roll and total
+        let rollData = ops[0].inlinerolls[0];
+        let attackResult = rollData.results.total;
+        let d20 = null;
+        // Find the d20 roll in the roll structure
+        if (rollData.results && rollData.results.rolls && rollData.results.rolls.length > 0) {
+            let rollsArr = rollData.results.rolls;
+            for (let i = 0; i < rollsArr.length; i++) {
+                if (rollsArr[i].type === 'V' && rollsArr[i].rolls && rollsArr[i].rolls.length > 0) {
+                    // Find the first d20 in the V roll
+                    for (let j = 0; j < rollsArr[i].rolls.length; j++) {
+                        if (typeof rollsArr[i].rolls[j].v === 'number') {
+                            d20 = rollsArr[i].rolls[j].v;
+                            break;
+                        }
+                    }
+                }
+                if (d20 !== null) break;
+            }
+        }
+        let isCrit = (d20 === 20);
         let hit = attackResult >= ac;
-        
+
         let result = '';
-        
+
         if (hit) {
             result = `**HIT!** (${attackResult} vs AC ${ac})`;
-            
+            let damageFormula = trapStats.damage;
+            if (isCrit) {
+                // Double the dice for a crit (e.g., 2d10 -> 4d10)
+                damageFormula = doubleDice(trapStats.damage);
+            }
             // Calculate damage and apply it - use single roll for both display and application
-            sendChat('', `/w gm [[${trapStats.damage}]]`, function(damageOps) {
+            sendChat('', `/w gm [[${damageFormula}]]`, function(damageOps) {
                 let damageAmount = damageOps[0].inlinerolls[0].results.total;
                 let isPlayerCharacter = hasLevelAttribute(character);
                 applyDamage(token, character, damageAmount, tokenName, isPlayerCharacter);
-                
+
                 sendChat('Trap System',
                     `&{template:npcaction}{{rname=Trap Triggered!}}{{name=${tokenName}}}{{description=**${trapStats.type.toUpperCase()} Trap (Level ${level})**
 **Attack Roll:** ${attackResult} vs AC ${ac}
-**Result:** ${result}
+**Result:** ${result}${isCrit ? ' (CRITICAL HIT!)' : ''}
 **Damage:** ${damageAmount} ${params.damageType} (applied automatically)
 }}`
                 );
@@ -209,6 +233,14 @@ function processAttackTrap(token, character, trapStats, params, tokenName, level
 }}`
             );
         }
+    });
+}
+
+// Helper to double the dice in a damage formula string (e.g., 2d10 -> 4d10)
+function doubleDice(formula) {
+    // Match patterns like XdY (e.g., 2d10, 10d6)
+    return formula.replace(/(\d+)d(\d+)/g, function(match, dice, sides) {
+        return (parseInt(dice, 10) * 2) + 'd' + sides;
     });
 }
 
@@ -259,68 +291,6 @@ function processSaveTrap(token, character, trapStats, params, tokenName, level) 
     });
 }
 
-function sendTrapPrompt(playerName) {
-    sendChat('Trap System', `/w "${playerName}" **Trap Trigger Command Format:**
-
-\`!trap trigger --type [nuisance/deadly] --method [attack/save] --damage [damage_type]\`
-
-**Example:**
-\`!trap trigger --type deadly --method save --damage fire\`
-
-**Damage Types:** bludgeoning, piercing, slashing, fire, cold, lightning, acid, thunder, poison
-
-**Save Types are automatically determined:**
-• Strength: bludgeoning, thunder
-• Dexterity: slashing, fire, lightning, acid  
-• Constitution: piercing, cold, poison
-
-**Character levels are automatically detected from character sheets.**
-    `);
-}
-
-function showTrapReference(playerName) {
-    let output = `**Trap Reference Tables**
-
-**NUISANCE TRAPS:**
-• Level 1-4: +4 attack, DC 10-12, 1d10 damage
-• Level 5-10: +4 attack, DC 12-14, 2d10 damage  
-• Level 11-16: +4 attack, DC 14-16, 4d10 damage
-• Level 17-20: +4 attack, DC 16-18, 10d10 damage
-
-**DEADLY TRAPS:**
-• Level 1-4: +8 attack, DC 13-15, 2d10 damage
-• Level 5-10: +8 attack, DC 15-17, 4d10 damage
-• Level 11-16: +8 attack, DC 17-19, 10d10 damage  
-• Level 17-20: +8 attack, DC 19-21, 18d10 damage
-
-**Saving Throws:**
-• **Strength:** bludgeoning, thunder
-• **Dexterity:** slashing, fire, lightning, acid
-• **Constitution:** piercing, cold, poison`;
-
-    sendChat('Trap System', `/w "${playerName}" ${output}`);
-}
-
-function showTrapHelp(playerName) {
-    sendChat('Trap System', `/w "${playerName}" **Trap System Commands:**
-
-• \`!trap trigger\` - Trigger a trap (shows format if no params)
-• \`!trap reference\` - Show trap stat tables
-• \`!trap help\` - Show this help
-
-**Usage:**
-1. Select tokens that trigger the trap
-2. Use: \`!trap trigger --type deadly --method save --damage fire\`
-3. Script automatically detects character levels and applies results
-
-**Parameters:**
-• **type:** nuisance or deadly
-• **method:** attack (vs AC) or save (half damage on success)  
-• **damage:** bludgeoning, piercing, slashing, fire, cold, lightning, acid, thunder, poison
-
-**Character levels are automatically detected from character sheet attributes.**
-    `);
-}
 
 function applyDamage(token, character, damageAmount, tokenName, isPlayerCharacter) {
     // Determine which attributes to check for resistances/immunities
