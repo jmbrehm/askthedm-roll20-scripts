@@ -3,6 +3,14 @@
 // Usage: Select a monster token and one or more player tokens, then run !monsterattack
 
 // Reference tables are now loaded from dependencies
+// Helper to double the dice in a damage formula string (e.g., 2d10+3 -> 4d10+3)
+function doubleDiceExpression(expr) {
+    // Only double the dice portion, not the modifier
+    // Handles expressions like '2d8+4', '1d6', '3d10+2', etc.
+    return expr.replace(/(\d+)d(\d+)/g, function(match, dice, sides) {
+        return (parseInt(dice, 10) * 2) + 'd' + sides;
+    });
+}
 // Use globalThis.DamageToSave and globalThis.CR_ATTRIBUTE_REFERENCE
 
 function parseCR(crVal) {
@@ -199,13 +207,13 @@ on('chat:message', function(msg) {
                 };
                 sendChat('', `/w gm [[${attackRollExpr}]]`, function(ops) {
                     let attackRoll = ops[0].inlinerolls[0].results.total;
-                    let nat20 = ops[0].inlinerolls[0].results.rolls[0].results[0].v === 20;
                     let hit = attackRoll >= ac;
                     let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
                     let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
                     let isCritImmune = immunities.includes('criticals');
-                    let isCritical = nat20 && !isCritImmune;
-                    let resultText = hit ? (nat20 ? (isCritImmune ? '**HIT**' : '**CRITICAL HIT**') : '**HIT**') : '**MISS**';
+                    // Improved crit detection: if (attackRoll - attackBonus) === 20, it's a crit
+                    let isCritical = ((attackRoll - attackBonus) === 20) && !isCritImmune;
+                    let resultText = hit ? (isCritical ? '**CRITICAL HIT**' : '**HIT**') : '**MISS**';
                     let critDamageExpr = damageExpr;
                     let critFormula = damageExpr;
                     let diceLine = `**Dice:** ${critFormula}`;
@@ -234,6 +242,17 @@ on('chat:message', function(msg) {
                                     hpAttr.set('current', Math.max(0, currentHP - remainingDamage));
                                 }
                             }
+                            // --- Visual Effect Trigger for Monster Attack ---
+                            // Use built-in 'burn-x' effect, where x is the color from DamageToVEffect for the damage type
+                            if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
+                                let vfxColor = globalThis.DamageToVEffect[damageType] || 'blood';
+                                let vfxName = `burn-${vfxColor}`;
+                                let vfxX = playerToken.get('left');
+                                let vfxY = playerToken.get('top');
+                                let vfxPage = playerToken.get('pageid');
+                                spawnFx(vfxX, vfxY, vfxName, vfxPage);
+                            }
+                            // --- End Visual Effect Trigger ---
                             let resistAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0];
                             let immuneAttr2 = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
                             let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -321,6 +340,17 @@ on('chat:message', function(msg) {
                         let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
                         let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
                         let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                        // --- Visual Effect Trigger for Monster Spell ---
+                        // Use 'glow-x' for success, 'burn-x' for failure, x from DamageToVEffect
+                        if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
+                            let vfxColor = globalThis.DamageToVEffect[damageType] || 'blood';
+                            let vfxName = success ? `glow-${vfxColor}` : `burn-${vfxColor}`;
+                            let vfxX = playerToken.get('left');
+                            let vfxY = playerToken.get('top');
+                            let vfxPage = playerToken.get('pageid');
+                            spawnFx(vfxX, vfxY, vfxName, vfxPage);
+                        }
+                        // --- End Visual Effect Trigger ---
                         if (immunities.includes(damageType)) {
                             resistText = '[immunity]';
                         } else if (resistances.includes(damageType)) {
