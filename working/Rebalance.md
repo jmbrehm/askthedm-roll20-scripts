@@ -6,16 +6,14 @@
 
 ---
 
-This macro runs the Rebalance script on all selected monster tokens, helping the GM quickly adjust monsters for encounter balance.
+This macro runs the Rebalance script on all selected monster tokens, allowing the GM to quickly update their Challenge Rating (CR) and automatically adjust their hit points (HP) and armor class (AC) to match the new CR.
 
 **How it works:**
 1. Select one or more monster tokens on the map.
 2. Run the macro above in chat and enter the desired Challenge Rating (CR) for the monsters.
-3. The script automatically:
-   - Detects the current stats (HP, AC, attack bonus, save DC, and damage) for each selected monster.
-   - Compares these stats to recommended values for the chosen CR, using balanced reference tables.
-   - Suggests adjustments for each stat to bring the monster in line with the target CR.
-   - Whispers the GM a summary for each monster, including current stats, recommended stats, and suggested changes.
+3. The script will:
+   - Update the selected monsters' CR attribute to the new value.
+   - Set their HP and AC to the recommended values for the chosen CR, based on the reference tables.
 
 **Customization:**
-You can modify the script to suggest changes based on party level, desired difficulty, or custom stat tables. See Rebalance.js for advanced options and details.
+You can modify the script to use custom stat tables or to adjust additional attributes. See Rebalance.js for details and advanced options.
