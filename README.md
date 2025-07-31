@@ -14,6 +14,7 @@ This repository contains custom API scripts and macros designed to enhance and a
 
 ## Working Scripts (Table of Contents)
 
+
 Scripts in the `working` folder are stable and ready for use. Click a script name below to view its macro and documentation:
 
 - [Detection Script](working/detection_macro.md)
@@ -24,6 +25,7 @@ Scripts in the `working` folder are stable and ready for use. Click a script nam
 - [Monster Attack](working/MonsterAttack.md)
 - [Rebalance](working/Rebalance.md)
 - [Trap Triggered](working/trap_trigger_macro.md)
+- [Twilight Cleric](in%20progress/TwilightCleric_macro.md)
 
 ---
 
@@ -34,6 +36,7 @@ Scripts in the `dependencies` folder provide data or reference tables used by th
 - **askthedm_CR_attribute_reference.js**: Provides the mapping of Challenge Rating (CR) to XP values and other monster stat references.
 - **askthedm_DamageToEffect_reference.js**: Maps damage types to their default saving throw abilities and visual effect components for use in trap and spell automation.
 - **askthedm_item_reference.js**: Contains tables of magic items by category, rarity, and theme for loot generation scripts.
+- **askthedm_DarkvisionBySpecies_reference.js**: Provides a lookup table for default darkvision and vision settings by species/race, used for robust vision automation (e.g., Eyes of Night, restoring default vision). Integrates with scripts like TwilightCleric.js for accurate vision restoration.
 
 ---
 
