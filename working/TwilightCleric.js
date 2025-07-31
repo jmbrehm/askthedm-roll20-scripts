@@ -1,42 +1,4 @@
-// Update flying-flag marker for all sanctuary targets within 30ft of active cleric
-function updateTwilightSanctuaryMarkers() {
-    // Find all tokens with twilight_sanctuary_target true
-    var allTokens = findObjs({type:'graphic', subtype:'token'});
-    var sanctuaryTargets = allTokens.filter(token => {
-        var charId = token.get('represents');
-        if (!charId) return false;
-        var tgtAttr = findObjs({type:'attribute', characterid:charId, name:'twilight_sanctuary_target'})[0];
-        return tgtAttr && String(tgtAttr.get('current')).toLowerCase() === 'true';
-    });
-    // Find cleric(s) with sanctuary active
-    var clerics = allTokens.filter(token => {
-        var charId = token.get('represents');
-        if (!charId) return false;
-        var tsAttr = findObjs({type:'attribute', characterid:charId, name:'twilight_sanctuary'})[0];
-        return tsAttr && String(tsAttr.get('current')).toLowerCase() === 'true';
-    });
-    sanctuaryTargets.forEach(target => {
-        var inRange = clerics.some(cleric => getDistanceBetweenTokens(target, cleric) <= 30);
-        var markers = target.get('statusmarkers') || '';
-        var hasFlag = markers.includes('flying-flag');
-        if (inRange && !hasFlag) {
-            markers = markers ? markers + ',flying-flag' : 'flying-flag';
-            target.set({statusmarkers: markers});
-        } else if (!inRange && hasFlag) {
-            // Remove flying-flag
-            markers = markers.split(',').filter(m => m !== 'flying-flag').join(',');
-            target.set({statusmarkers: markers});
-        }
-    });
-}
-
-// Listen for token movement to update Twilight Sanctuary markers dynamically
-on('change:graphic', function(obj, prev) {
-    // Only update if position or page changes
-    if (obj.get('left') !== prev.left || obj.get('top') !== prev.top || obj.get('pageid') !== prev.pageid) {
-        updateTwilightSanctuaryMarkers();
-    }
-});
+// (Token marker and all references to flying-flag removed by user request. The aura is now the only visual indicator for Twilight Sanctuary range.)
 // Helper: get distance between two tokens (in feet, using page scale)
 function getDistanceBetweenTokens(tokenA, tokenB) {
     if (tokenA.get('pageid') !== tokenB.get('pageid')) return Infinity;
@@ -223,7 +185,7 @@ function handleTwilightSanctuary(msg) {
         }
         sendChat('TwilightCleric', `/w gm Twilight Sanctuary activated for ${clericToken.get('name')||''}.`);
     }
-    updateTwilightSanctuaryMarkers();
+    // No marker update needed; marker logic removed.
 
 // (Persistent VFX for Twilight Sanctuary removed by user request)
 }
@@ -254,40 +216,10 @@ function handleTwilightSanctuaryTarget(msg) {
             }
         }
     });
-    updateTwilightSanctuaryMarkers();
+    // No marker update needed; marker logic removed.
 }
 
-// Update flying-flag marker for all sanctuary targets within 30ft of active cleric
-function updateTwilightSanctuaryMarkers() {
-    // Find all tokens with twilight_sanctuary_target true
-    var allTokens = findObjs({type:'graphic', subtype:'token'});
-    var sanctuaryTargets = allTokens.filter(token => {
-        var charId = token.get('represents');
-        if (!charId) return false;
-        var tgtAttr = findObjs({type:'attribute', characterid:charId, name:'twilight_sanctuary_target'})[0];
-        return tgtAttr && String(tgtAttr.get('current')).toLowerCase() === 'true';
-    });
-    // Find cleric(s) with sanctuary active
-    var clerics = allTokens.filter(token => {
-        var charId = token.get('represents');
-        if (!charId) return false;
-        var tsAttr = findObjs({type:'attribute', characterid:charId, name:'twilight_sanctuary'})[0];
-        return tsAttr && String(tsAttr.get('current')).toLowerCase() === 'true';
-    });
-    sanctuaryTargets.forEach(target => {
-        var inRange = clerics.some(cleric => getDistanceBetweenTokens(target, cleric) <= 30);
-        var markers = target.get('statusmarkers') || '';
-        var hasFlag = markers.includes('flying-flag');
-        if (inRange && !hasFlag) {
-            markers = markers ? markers + ',flying-flag' : 'flying-flag';
-            target.set({statusmarkers: markers});
-        } else if (!inRange && hasFlag) {
-            // Remove flying-flag
-            markers = markers.split(',').filter(m => m !== 'flying-flag').join(',');
-            target.set({statusmarkers: markers});
-        }
-    });
-}
+// (All token marker logic fully removed. No marker adjustment is performed by this script.)
 
 // Helper: get distance between two tokens (in feet, using page scale)
 function getDistanceBetweenTokens(tokenA, tokenB) {
