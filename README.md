@@ -11,6 +11,7 @@ This repository contains custom API scripts and macros designed to enhance and a
 ---
 
 
+
 ## Working Scripts (Table of Contents)
 
 Scripts in the `working` folder are stable and ready for use. Click a script name below to view its macro and documentation:
@@ -18,6 +19,7 @@ Scripts in the `working` folder are stable and ready for use. Click a script nam
 - [Detection Script](working/detection_macro.md)
 - [Experience Automation](working/experience_automation_macro.md)
 - [Gathering Resources](working/gathering_resources_macro.md)
+- [Initiative Script](in%20progress/Initiative.md)
 - [Loot Generator](working/loot_generator_macro.md)
 - [Monster Attack](working/MonsterAttack.md)
 - [Rebalance](working/Rebalance.md)
