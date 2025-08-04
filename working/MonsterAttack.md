@@ -1,4 +1,5 @@
 
+
 # Monster Attack Macro
 
 ```
@@ -11,13 +12,29 @@
 !monsterattack --type Spell --resist ?{Resist Type|None|Half} --attacks ?{Number of Actions Used|1|2|3|4} --primary ?{Primary Damage Type|fire|cold|acid|poison|lightning|thunder|necrotic|radiant|psychic|force|none}
 ```
 
+# Attacker Toggle Macro
+
+Use this macro to toggle which token is the attacker (the source of the attack or spell):
+
+```
+!toggleattacker
+```
+
+When you run this macro with a token selected, it will:
+- Set the selected token's `attacker` attribute to true (if not present, it creates it), and add a "fist" marker to the token for visual feedback.
+- If the token already has `attacker` set to true, running the macro again will set it to false and remove the "fist" marker.
+- Only one token in your selection should have `attacker` set to true when running a monster attack or spell.
+
 ---
 
 ## How to Use
 
-1. Select one monster token (with a valid `npc_challenge` attribute) and one or more player tokens (with a valid level attribute).
-2. Run the appropriate macro above in chat.
-3. Fill out the prompts for attack/spell type, roll type or resist type, number of actions, and primary damage type.
+1. Select all tokens involved in the attack or spell (the attacker and all targets).
+2. Use the **Attacker Toggle Macro** above to set one token as the attacker (it will get a "fist" marker).
+3. With all tokens still selected, run the appropriate macro above for attack or spell. The script will automatically use the token with `attacker = true` as the source, and all others as targets.
+   - If more than one token has `attacker = true`, the script will whisper an error and not proceed.
+   - If no token has `attacker = true`, the script will whisper an error and not proceed.
+4. Fill out the prompts for attack/spell type, roll type or resist type, number of actions, and primary damage type as before.
 
 ---
 

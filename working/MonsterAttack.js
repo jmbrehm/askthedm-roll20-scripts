@@ -80,10 +80,8 @@ function generateDiceExpression(targetDamage, isAttack = false) {
         let diceVal = dice.avg;
         let total = diceVal + baseMod;
         if (total > targetDamage) {
-            // If even the minimum mod puts us over, skip
             continue;
         }
-        // Increase modifier to get as close as possible without going over
         let neededMod = Math.floor(targetDamage - diceVal);
         if (neededMod < baseMod) neededMod = baseMod;
         let finalTotal = diceVal + neededMod;
@@ -94,7 +92,6 @@ function generateDiceExpression(targetDamage, isAttack = false) {
             minDiff = diff;
         }
     }
-    // If nothing fit, pick the one with the highest total under target
     if (!best) {
         let maxTotal = -1;
         for (const dice of allowedDice) {
@@ -114,121 +111,203 @@ function generateDiceExpression(targetDamage, isAttack = false) {
             return `${best.num}d${best.die}`;
         }
     }
-    // Fallback
     return "1d4";
 }
 
+// Main handler: process !monsterattack command
+// --- Toggle 'attacker' attribute for selected token's character ---
 on('chat:message', function(msg) {
-    if (msg.type !== 'api' || !msg.content.startsWith('!monsterattack')) return;
-    if (!msg.selected || msg.selected.length < 2) {
-        sendChat('MonsterAttack', `/w gm Please select a monster token and one or more player tokens.`);
-        return;
-    }
-    // Identify monster and player tokens by attributes
-    let monsterToken = null;
-    let monsterChar = null;
-    let playerTokens = [];
-    msg.selected.forEach(sel => {
-        let token = getObj('graphic', sel._id);
-        if (!token) return;
-        let character = getObj('character', token.get('represents'));
-        if (!character) return;
-        // Monster detection: has npc_challenge attribute
-        let crAttr = findObjs({type:'attribute', characterid:character.id, name:'npc_challenge'})[0];
-        if (crAttr) {
-            let challengeRating = crAttr.get('current');
-            if (challengeRating && challengeRating !== '' && !isNaN(parseFloat(challengeRating))) {
-                monsterToken = token;
-                monsterChar = character;
-                return;
-            }
+    if (msg.type !== 'api') return;
+
+    // --- Toggle Attacker Command ---
+    if (msg.content.startsWith('!toggleattacker')) {
+        if (!msg.selected || msg.selected.length === 0) {
+            sendChat('MonsterAttack', '/w gm Please select a token to toggle the attacker attribute.');
+            return;
         }
-        // Player detection: has any valid level attribute
-        let levelAttrNames = ['level', 'character_level', 'total_level', 'base_level'];
-        for (let attrName of levelAttrNames) {
-            let levelAttr = findObjs({type:'attribute', characterid:character.id, name:attrName})[0];
-            if (levelAttr) {
-                let level = parseInt(levelAttr.get('current'), 10);
-                if (level && level > 0 && level <= 20) {
-                    playerTokens.push({ token, character });
-                    break;
+        msg.selected.forEach(sel => {
+            let token = getObj('graphic', sel._id);
+            if (!token) return;
+            let charId = token.get('represents');
+            if (!charId) return;
+            let attr = findObjs({type:'attribute', characterid:charId, name:'attacker'})[0];
+            if (!attr) {
+                createObj('attribute', {
+                    characterid: charId,
+                    name: 'attacker',
+                    current: 'true'
+                });
+                // Add 'fist' marker
+                let markers = token.get('statusmarkers') || '';
+                let markerArr = markers ? markers.split(',') : [];
+                if (!markerArr.includes('fist')) {
+                    markerArr.push('fist');
+                    token.set('statusmarkers', markerArr.filter(Boolean).join(','));
+                }
+                sendChat('MonsterAttack', `/w gm Set 'attacker' to true for ${token.get('name')}`);
+            } else {
+                let val = (attr.get('current') || '').toLowerCase();
+                if (val === 'true') {
+                    attr.set('current', 'false');
+                    // Remove 'fist' marker
+                    let markers = token.get('statusmarkers') || '';
+                    let markerArr = markers ? markers.split(',') : [];
+                    markerArr = markerArr.filter(m => m !== 'fist');
+                    token.set('statusmarkers', markerArr.join(','));
+                    sendChat('MonsterAttack', `/w gm Set 'attacker' to false for ${token.get('name')}`);
+                } else {
+                    attr.set('current', 'true');
+                    // Add 'fist' marker
+                    let markers = token.get('statusmarkers') || '';
+                    let markerArr = markers ? markers.split(',') : [];
+                    if (!markerArr.includes('fist')) {
+                        markerArr.push('fist');
+                        token.set('statusmarkers', markerArr.filter(Boolean).join(','));
+                    }
+                    sendChat('MonsterAttack', `/w gm Set 'attacker' to true for ${token.get('name')}`);
                 }
             }
-        }
-    });
-    if (!monsterToken || !monsterChar || playerTokens.length === 0) {
-        sendChat('MonsterAttack', `/w gm Please select one monster (with npc_challenge) and one or more players (with level).`);
+        });
         return;
     }
-    if (msg.content.includes('--type')) {
-        let args = {};
+
+    // --- MonsterAttack Command ---
+    if (!msg.content.startsWith('!monsterattack')) return;
+    if (!msg.selected || msg.selected.length === 0) {
+        sendChat('MonsterAttack', `/w gm Please select one or more target tokens before running the macro.`);
+        return;
+    }
+    // Parse arguments
+    let args = {};
+    if (msg.content.includes('--')) {
         msg.content.split('--').slice(1).forEach(arg => {
             let [key, ...rest] = arg.trim().split(' ');
             args[key] = rest.join(' ');
         });
-        let crVal = getAttrByName(monsterChar.id, 'npc_challenge');
-        let crKey = crVal && crVal.trim() ? crVal.trim() : '1';
-        let stats = (globalThis.CR_ATTRIBUTE_REFERENCE && globalThis.CR_ATTRIBUTE_REFERENCE[crKey]) || globalThis.CR_ATTRIBUTE_REFERENCE['1'];
-        let attackBonus = stats.attack;
-        let saveDC = stats.save;
-        let minDmg = stats.damage[0];
-        let maxDmg = stats.damage[1];
-        let totalTurnDamage = Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
-        let crNum = parseCR(crKey);
-        let totalActions = (crNum < 1) ? 1 : (2 + Math.floor(crNum / 5));
-        let damagePerAction = Math.max(1, Math.floor(totalTurnDamage / totalActions));
-        let actionsUsed = parseInt(args.attacks) || 1;
-        let attackDamage = damagePerAction * actionsUsed;
-        let damageExpr = generateDiceExpression(attackDamage, args.type === 'Attack');
-        if (args.type === 'Attack') {
-            playerTokens.forEach(({ token: playerToken, character: playerChar }) => {
-                let ac = parseInt(getAttrByName(playerChar.id, 'ac'));
-                let rollType = (args.rolltype || 'Normal').toLowerCase();
-                let attackRollExpr;
-                if (rollType === 'advantage') {
-                    attackRollExpr = `2d20kh1+${attackBonus}`;
-                } else if (rollType === 'disadvantage') {
-                    attackRollExpr = `2d20kl1+${attackBonus}`;
-                } else {
-                    attackRollExpr = `1d20+${attackBonus}`;
-                }
-                let damageType = (args.primary || '').toLowerCase();
-                let applyResistImmunity = function(damageAmount) {
-                    let resistAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0];
-                    let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
-                    let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                    let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                    if (immunities.includes(damageType)) {
-                        return 0;
-                    } else if (resistances.includes(damageType)) {
-                        return Math.max(1, Math.floor(damageAmount / 2));
+    }
+    // Find attacker and targets from selection
+    let selectedTokens = msg.selected.map(sel => {
+        let token = getObj('graphic', sel._id);
+        let character = token ? getObj('character', token.get('represents')) : null;
+        return token && character ? { token, character } : null;
+    }).filter(Boolean);
+    if (selectedTokens.length === 0) {
+        sendChat('MonsterAttack', `/w gm No valid tokens selected.`);
+        return;
+    }
+    // Find all with attacker=true
+    let attackers = selectedTokens.filter(({token, character}) => {
+        let attr = findObjs({type:'attribute', characterid:character.id, name:'attacker'})[0];
+        return attr && (attr.get('current') || '').toLowerCase() === 'true';
+    });
+    if (attackers.length > 1) {
+        sendChat('MonsterAttack', `/w gm Too many attackers in the group. Only one token should have the 'attacker' attribute set to true.`);
+        return;
+    }
+    if (attackers.length === 0) {
+        sendChat('MonsterAttack', `/w gm No attacker found. Please set one selected token's 'attacker' attribute to true.`);
+        return;
+    }
+    let sourceToken = attackers[0].token;
+    let sourceChar = attackers[0].character;
+    // All other selected tokens are targets
+    let targetTokens = selectedTokens.filter(({token, character}) => token.id !== sourceToken.id);
+    if (targetTokens.length === 0) {
+        sendChat('MonsterAttack', `/w gm No valid target tokens selected (must select at least one target in addition to the attacker).`);
+        return;
+    }
+    // Get CR and stats from source
+    let crVal = getAttrByName(sourceChar.id, 'npc_challenge');
+    let crKey = crVal && crVal.trim() ? crVal.trim() : '1';
+    let stats = (globalThis.CR_ATTRIBUTE_REFERENCE && globalThis.CR_ATTRIBUTE_REFERENCE[crKey]) || globalThis.CR_ATTRIBUTE_REFERENCE['1'];
+    let attackBonus = stats.attack;
+    let saveDC = stats.save;
+    let minDmg = stats.damage[0];
+    let maxDmg = stats.damage[1];
+    let totalTurnDamage = Math.floor(Math.random() * (maxDmg - minDmg + 1)) + minDmg;
+    let crNum = parseCR(crKey);
+    let totalActions = (crNum < 1) ? 1 : (2 + Math.floor(crNum / 5));
+    let damagePerAction = Math.max(1, Math.floor(totalTurnDamage / totalActions));
+    let actionsUsed = parseInt(args.attacks) || 1;
+    let attackDamage = damagePerAction * actionsUsed;
+    let damageExpr = generateDiceExpression(attackDamage, args.type === 'Attack');
+    if (args.type === 'Attack') {
+        targetTokens.forEach(({ token: playerToken, character: playerChar }) => {
+            let ac = parseInt(getAttrByName(playerChar.id, 'ac'));
+            let rollType = (args.rolltype || 'Normal').toLowerCase();
+            let attackRollExpr;
+            if (rollType === 'advantage') {
+                attackRollExpr = `2d20kh1+${attackBonus}`;
+            } else if (rollType === 'disadvantage') {
+                attackRollExpr = `2d20kl1+${attackBonus}`;
+            } else {
+                attackRollExpr = `1d20+${attackBonus}`;
+            }
+            let damageType = (args.primary || '').toLowerCase();
+            let applyResistImmunity = function(damageAmount) {
+            // Check both pc_ and npc_ attributes for resistances and immunities
+            let resistAttrs = [
+                findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0],
+                findObjs({type:'attribute', characterid:playerChar.id, name:'npc_resistances'})[0]
+            ];
+            let immuneAttrs = [
+                findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0],
+                findObjs({type:'attribute', characterid:playerChar.id, name:'npc_immunities'})[0]
+            ];
+            let resistances = resistAttrs
+                .map(attr => attr ? (attr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [])
+                .flat();
+            let immunities = immuneAttrs
+                .map(attr => attr ? (attr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [])
+                .flat();
+            if (immunities.includes(damageType)) {
+                return 0;
+            } else if (resistances.includes(damageType)) {
+                return Math.max(1, Math.floor(damageAmount / 2));
+            }
+            return damageAmount;
+            };
+            sendChat('', `/w gm [[${attackRollExpr}]]`, function(ops) {
+                let attackRoll = ops[0].inlinerolls[0].results.total;
+                let hit = attackRoll >= ac;
+                let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
+                let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                let isCritImmune = immunities.includes('criticals');
+                // Improved crit detection: if (attackRoll - attackBonus) === 20, it's a crit
+                let isCritical = ((attackRoll - attackBonus) === 20) && !isCritImmune;
+                let resultText = hit ? (isCritical ? '**CRITICAL HIT**' : '**HIT**') : '**MISS**';
+                let critDamageExpr = damageExpr;
+                let critFormula = damageExpr;
+                let diceLine = `**Dice:** ${critFormula}`;
+                if (hit) {
+                    if (isCritical) {
+                        critDamageExpr = doubleDiceExpression(damageExpr);
+                        critFormula = critDamageExpr;
+                        diceLine = `**Dice:** ${critFormula} (critical)`;
                     }
-                    return damageAmount;
-                };
-                sendChat('', `/w gm [[${attackRollExpr}]]`, function(ops) {
-                    let attackRoll = ops[0].inlinerolls[0].results.total;
-                    let hit = attackRoll >= ac;
-                    let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
-                    let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                    let isCritImmune = immunities.includes('criticals');
-                    // Improved crit detection: if (attackRoll - attackBonus) === 20, it's a crit
-                    let isCritical = ((attackRoll - attackBonus) === 20) && !isCritImmune;
-                    let resultText = hit ? (isCritical ? '**CRITICAL HIT**' : '**HIT**') : '**MISS**';
-                    let critDamageExpr = damageExpr;
-                    let critFormula = damageExpr;
-                    let diceLine = `**Dice:** ${critFormula}`;
-                    if (hit) {
-                        if (isCritical) {
-                            critDamageExpr = doubleDiceExpression(damageExpr);
-                            critFormula = critDamageExpr;
-                            diceLine = `**Dice:** ${critFormula} (critical)`;
-                        }
-                        sendChat('', `/w gm [[${critDamageExpr}]]`, function(dmgOps) {
-                            let rolledDamage = dmgOps[0].inlinerolls[0].results.total;
-                            let appliedDamage = applyResistImmunity(rolledDamage);
+                    sendChat('', `/w gm [[${critDamageExpr}]]`, function(dmgOps) {
+                        let rolledDamage = dmgOps[0].inlinerolls[0].results.total;
+                        let appliedDamage = applyResistImmunity(rolledDamage);
+                        // --- Damage Application: PC vs NPC ---
+                        let isNPC = !!getAttrByName(playerChar.id, 'npc_challenge');
+                        let remainingDamage = appliedDamage;
+                        if (isNPC) {
+                            // Bar 3 = temp HP, Bar 1 = HP
+                            let bar3 = parseInt(playerToken.get('bar3_value')) || 0;
+                            if (bar3 > 0) {
+                                let tempDamage = Math.min(bar3, remainingDamage);
+                                let newBar3 = bar3 - tempDamage;
+                                playerToken.set('bar3_value', newBar3);
+                                remainingDamage -= tempDamage;
+                            }
+                            if (remainingDamage > 0) {
+                                let bar1 = parseInt(playerToken.get('bar1_value')) || 0;
+                                let newBar1 = Math.max(0, bar1 - remainingDamage);
+                                playerToken.set('bar1_value', newBar1);
+                            }
+                        } else {
                             let tempHpAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'hp_temp'})[0];
                             let tempHP = tempHpAttr ? parseInt(tempHpAttr.get('current'), 10) || 0 : 0;
-                            let remainingDamage = appliedDamage;
                             if (tempHP > 0) {
                                 let tempDamage = Math.min(tempHP, remainingDamage);
                                 let newTempHP = tempHP - tempDamage;
@@ -242,87 +321,116 @@ on('chat:message', function(msg) {
                                     hpAttr.set('current', Math.max(0, currentHP - remainingDamage));
                                 }
                             }
-                            // --- Visual Effect Trigger for Monster Attack ---
-                            // Use built-in 'burn-x' effect, where x is the color from DamageToVEffect for the damage type
-                            if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
-                                let vfxColor = globalThis.DamageToVEffect[damageType] || 'blood';
-                                let vfxName = `burn-${vfxColor}`;
-                                let vfxX = playerToken.get('left');
-                                let vfxY = playerToken.get('top');
-                                let vfxPage = playerToken.get('pageid');
-                                spawnFx(vfxX, vfxY, vfxName, vfxPage);
-                            }
-                            // --- End Visual Effect Trigger ---
-                            let resistAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0];
-                            let immuneAttr2 = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
-                            let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                            let immunities2 = immuneAttr2 ? (immuneAttr2.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                            let resistText = '';
-                            if (immunities2.includes(damageType)) {
-                                resistText = '[immunity]';
-                            } else if (resistances.includes(damageType)) {
-                                resistText = '[resistance]';
-                            }
-                            let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})`;
-                            let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
-                            let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs. AC ${ac}<br>**Result:** ${resultText}<br>${diceLine}<br>${damageText}<br>${appliedText}}}`;
-                            sendChat('MonsterAttack', output);
-                        });
-                    } else {
-                        let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs. AC ${ac}<br>**Result:** ${resultText}}}`;
-                        sendChat('MonsterAttack', output);
-                    }
-                });
-            });
-        } else if (args.type === 'Spell') {
-            // Roll spell damage ONCE for all players
-            let damageType = (args.primary || '').toLowerCase();
-            let stat = typeof globalThis.DamageToSave !== 'undefined' && globalThis.DamageToSave[damageType] ? globalThis.DamageToSave[damageType].toLowerCase() : 'constitution';
-            let diceLine = `**Dice:** ${damageExpr}`;
-            sendChat('', `/w gm [[${damageExpr}]]`, function(dmgOps) {
-                let baseDamage = dmgOps[0].inlinerolls[0].results.total;
-                if (baseDamage < 1) baseDamage = 1;
-                playerTokens.forEach(({ token: playerToken, character: playerChar }) => {
-                    let saveAttrName = `${stat}_save_bonus`;
-                    let saveAttr = findObjs({type:'attribute', characterid:playerChar.id, name: saveAttrName})[0];
-                    let saveMod = saveAttr ? parseInt(saveAttr.get('current')) : 0;
-                    let saveRollExpr = `1d20+${saveMod}`;
-                    sendChat('', `/w gm [[${saveRollExpr}]]`, function(ops) {
-                        let saveRoll = ops[0].inlinerolls[0].results.total;
-                        let success = saveRoll >= saveDC;
-                        let resultText = success ? '**SUCCESS**' : '**FAILURE**';
-                        let applyResistImmunity = function(damageAmount) {
-                            let resistAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0];
-                            let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
-                            let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                            let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                            if (immunities.includes(damageType)) {
-                                return 0;
-                            } else if (resistances.includes(damageType)) {
-                                return Math.max(1, Math.floor(damageAmount / 2));
-                            }
-                            return damageAmount;
-                        };
-                        let rolledDamage = baseDamage;
-                        let damageText = '';
-                        let appliedDamage = 0;
-                        let resistText = '';
-                        if (success) {
-                            if (args.resist === 'Half') {
-                                rolledDamage = Math.floor(baseDamage / 2);
-                                if (rolledDamage < 1) rolledDamage = 1;
-                                damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'}) (half damage)`;
-                            } else {
-                                damageText = `**Damage:** 0 (${args.primary || 'unknown'}) (no damage)`;
-                                rolledDamage = 0;
-                            }
-                        } else {
-                            damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})`;
                         }
-                        appliedDamage = applyResistImmunity(rolledDamage);
+                        // --- Visual Effect Trigger for Monster Attack ---
+                        // Use built-in 'burn-x' effect, where x is the color from DamageToVEffect for the damage type
+                        if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
+                            let vfxColor = globalThis.DamageToVEffect[damageType] || 'blood';
+                            let vfxName = `burn-${vfxColor}`;
+                            let vfxX = playerToken.get('left');
+                            let vfxY = playerToken.get('top');
+                            let vfxPage = playerToken.get('pageid');
+                            spawnFx(vfxX, vfxY, vfxName, vfxPage);
+                        }
+                        // --- End Visual Effect Trigger ---
+                        // Check both pc_ and npc_ attributes for resistances and immunities for output
+                        let resistAttrs = [
+                            findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0],
+                            findObjs({type:'attribute', characterid:playerChar.id, name:'npc_resistances'})[0]
+                        ];
+                        let immuneAttrs = [
+                            findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0],
+                            findObjs({type:'attribute', characterid:playerChar.id, name:'npc_immunities'})[0]
+                        ];
+                        let resistances = resistAttrs
+                            .map(attr => attr ? (attr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [])
+                            .flat();
+                        let immunities = immuneAttrs
+                            .map(attr => attr ? (attr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [])
+                            .flat();
+                        let resistText = '';
+                        if (immunities.includes(damageType)) {
+                            resistText = '[immunity]';
+                        } else if (resistances.includes(damageType)) {
+                            resistText = '[resistance]';
+                        }
+                        let damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})`;
+                        let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
+                        let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs. AC ${ac}<br>**Result:** ${resultText}<br>${diceLine}<br>${damageText}<br>${appliedText}}}`;
+                        sendChat('MonsterAttack', output);
+                    });
+                } else {
+                    let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**Attack Roll:** ${attackRoll} vs. AC ${ac}<br>**Result:** ${resultText}}}`;
+                    sendChat('MonsterAttack', output);
+                }
+            });
+        });
+    } else if (args.type === 'Spell') {
+        // Roll spell damage ONCE for all players
+        let damageType = (args.primary || '').toLowerCase();
+        let stat = typeof globalThis.DamageToSave !== 'undefined' && globalThis.DamageToSave[damageType] ? globalThis.DamageToSave[damageType].toLowerCase() : 'constitution';
+        let diceLine = `**Dice:** ${damageExpr}`;
+        sendChat('', `/w gm [[${damageExpr}]]`, function(dmgOps) {
+            let baseDamage = dmgOps[0].inlinerolls[0].results.total;
+            if (baseDamage < 1) baseDamage = 1;
+            targetTokens.forEach(({ token: playerToken, character: playerChar }) => {
+                let saveAttrName = `${stat}_save_bonus`;
+                let saveAttr = findObjs({type:'attribute', characterid:playerChar.id, name: saveAttrName})[0];
+                let saveMod = saveAttr ? parseInt(saveAttr.get('current')) : 0;
+                let saveRollExpr = `1d20+${saveMod}`;
+                sendChat('', `/w gm [[${saveRollExpr}]]`, function(ops) {
+                    let saveRoll = ops[0].inlinerolls[0].results.total;
+                    let success = saveRoll >= saveDC;
+                    let resultText = success ? '**SUCCESS**' : '**FAILURE**';
+                    let applyResistImmunity = function(damageAmount) {
+                        let resistAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0];
+                        let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
+                        let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                        let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
+                        if (immunities.includes(damageType)) {
+                            return 0;
+                        } else if (resistances.includes(damageType)) {
+                            return Math.max(1, Math.floor(damageAmount / 2));
+                        }
+                        return damageAmount;
+                    };
+                    let rolledDamage = baseDamage;
+                    let damageText = '';
+                    let appliedDamage = 0;
+                    let resistText = '';
+                    if (success) {
+                        if (args.resist === 'Half') {
+                            rolledDamage = Math.floor(baseDamage / 2);
+                            if (rolledDamage < 1) rolledDamage = 1;
+                            damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'}) (half damage)`;
+                        } else {
+                            damageText = `**Damage:** 0 (${args.primary || 'unknown'}) (no damage)`;
+                            rolledDamage = 0;
+                        }
+                    } else {
+                        damageText = `**Damage:** ${rolledDamage} (${args.primary || 'unknown'})`;
+                    }
+                    appliedDamage = applyResistImmunity(rolledDamage);
+                    // --- Damage Application: PC vs NPC ---
+                    let isNPC = !!getAttrByName(playerChar.id, 'npc_challenge');
+                    let remainingDamage = appliedDamage;
+                    if (isNPC) {
+                        // Bar 3 = temp HP, Bar 1 = HP
+                        let bar3 = parseInt(playerToken.get('bar3_value')) || 0;
+                        if (bar3 > 0) {
+                            let tempDamage = Math.min(bar3, remainingDamage);
+                            let newBar3 = bar3 - tempDamage;
+                            playerToken.set('bar3_value', newBar3);
+                            remainingDamage -= tempDamage;
+                        }
+                        if (remainingDamage > 0) {
+                            let bar1 = parseInt(playerToken.get('bar1_value')) || 0;
+                            let newBar1 = Math.max(0, bar1 - remainingDamage);
+                            playerToken.set('bar1_value', newBar1);
+                        }
+                    } else {
                         let tempHpAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'hp_temp'})[0];
                         let tempHP = tempHpAttr ? parseInt(tempHpAttr.get('current'), 10) || 0 : 0;
-                        let remainingDamage = appliedDamage;
                         if (tempHP > 0) {
                             let tempDamage = Math.min(tempHP, remainingDamage);
                             let newTempHP = tempHP - tempDamage;
@@ -336,32 +444,43 @@ on('chat:message', function(msg) {
                                 hpAttr.set('current', Math.max(0, currentHP - remainingDamage));
                             }
                         }
-                        let resistAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0];
-                        let immuneAttr = findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0];
-                        let resistances = resistAttr ? (resistAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                        let immunities = immuneAttr ? (immuneAttr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [];
-                        // --- Visual Effect Trigger for Monster Spell ---
-                        // Use 'glow-x' for success, 'burn-x' for failure, x from DamageToVEffect
-                        if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
-                            let vfxColor = globalThis.DamageToVEffect[damageType] || 'blood';
-                            let vfxName = success ? `glow-${vfxColor}` : `burn-${vfxColor}`;
-                            let vfxX = playerToken.get('left');
-                            let vfxY = playerToken.get('top');
-                            let vfxPage = playerToken.get('pageid');
-                            spawnFx(vfxX, vfxY, vfxName, vfxPage);
-                        }
-                        // --- End Visual Effect Trigger ---
-                        if (immunities.includes(damageType)) {
-                            resistText = '[immunity]';
-                        } else if (resistances.includes(damageType)) {
-                            resistText = '[resistance]';
-                        }
-                        let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
-                        let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs. DC ${saveDC}<br>**Result:** ${resultText}<br>${diceLine}<br>${damageText}<br>${appliedText}}}`;
-                        sendChat('MonsterAttack', output);
-                    });
+                    }
+                    // Check both pc_ and npc_ attributes for resistances and immunities for output
+                    let resistAttrs = [
+                        findObjs({type:'attribute', characterid:playerChar.id, name:'pc_resistances'})[0],
+                        findObjs({type:'attribute', characterid:playerChar.id, name:'npc_resistances'})[0]
+                    ];
+                    let immuneAttrs = [
+                        findObjs({type:'attribute', characterid:playerChar.id, name:'pc_immunities'})[0],
+                        findObjs({type:'attribute', characterid:playerChar.id, name:'npc_immunities'})[0]
+                    ];
+                    let resistances = resistAttrs
+                        .map(attr => attr ? (attr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [])
+                        .flat();
+                    let immunities = immuneAttrs
+                        .map(attr => attr ? (attr.get('current') || '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean) : [])
+                        .flat();
+                    // --- Visual Effect Trigger for Monster Spell ---
+                    // Use 'glow-x' for success, 'burn-x' for failure, x from DamageToVEffect
+                    if (typeof spawnFx === 'function' && typeof globalThis.DamageToVEffect !== 'undefined') {
+                        let vfxColor = globalThis.DamageToVEffect[damageType] || 'blood';
+                        let vfxName = success ? `glow-${vfxColor}` : `burn-${vfxColor}`;
+                        let vfxX = playerToken.get('left');
+                        let vfxY = playerToken.get('top');
+                        let vfxPage = playerToken.get('pageid');
+                        spawnFx(vfxX, vfxY, vfxName, vfxPage);
+                    }
+                    // --- End Visual Effect Trigger ---
+                    if (immunities.includes(damageType)) {
+                        resistText = '[immunity]';
+                    } else if (resistances.includes(damageType)) {
+                        resistText = '[resistance]';
+                    }
+                    let appliedText = `**Applied:** ${appliedDamage} (${args.primary || 'unknown'}) ${resistText}`;
+                    let output = `&{template:npcaction}{{rname=Monster Attack}}{{name=${playerToken.get('name')}}}{{description=**${stat.charAt(0).toUpperCase()+stat.slice(1)} Save:** ${saveRoll} vs. DC ${saveDC}<br>**Result:** ${resultText}<br>${diceLine}<br>${damageText}<br>${appliedText}}}`;
+                    sendChat('MonsterAttack', output);
                 });
             });
-        }
+        });
     }
 });
