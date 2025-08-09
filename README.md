@@ -20,7 +20,7 @@ Scripts in the `functioning` folder are stable and ready for use. Scripts in the
 - [Detection Script](functioning/detection_macro.md)
 - [Experience Automation](functioning/experience_automation_macro.md)
 - [Gathering Resources](functioning/gathering_resources_macro.md)
-- [Initiative Script](functioning/Initiative.md)
+- [Initiative Script](functioning/initiative.md)
 - [Loot Generator](functioning/loot_generator_macro.md)
 - [Monster Attack](functioning/MonsterAttack.md)
 - [Protections](functioning/Protections_macro.md)
