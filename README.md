@@ -12,10 +12,10 @@ This repository contains custom API scripts and macros designed to enhance and a
 
 
 
-## Working Scripts (Table of Contents)
 
+## Functioning Scripts (Table of Contents)
 
-Scripts in the `working` folder are stable and ready for use. Click a script name below to view its macro and documentation:
+Scripts in the `functioning` folder are stable and ready for use. Scripts in the `in progress` folder may or may not be functional and are under active development. Click a script name below to view its macro and documentation:
 
 - [Detection Script](working/detection_macro.md)
 - [Experience Automation](working/experience_automation_macro.md)
@@ -23,6 +23,7 @@ Scripts in the `working` folder are stable and ready for use. Click a script nam
 - [Initiative Script](in%20progress/Initiative.md)
 - [Loot Generator](working/loot_generator_macro.md)
 - [Monster Attack](working/MonsterAttack.md)
+- [Protections](in%20progress/Protections_macro.md)
 - [Rebalance](working/Rebalance.md)
 - [Trap Triggered](working/trap_trigger_macro.md)
 - [Twilight Cleric](in%20progress/TwilightCleric_macro.md)
