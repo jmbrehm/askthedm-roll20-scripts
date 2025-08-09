@@ -1,6 +1,20 @@
 # Persistent VFX Macro for Roll20
 
-This macro and script allow you to apply a persistent visual effect (VFX) to a token, which will follow the token as it moves and persist until you stop it with a separate macro.
+Use these macros to apply or stop a persistent visual effect (VFX) on selected tokens. The effect will follow the token as it moves and persist until stopped.
+
+---
+
+## Macros
+
+**Start a Persistent VFX (prompts for effect and color):**
+```
+!vfx persist ?{effect|burn|glow|sparkle|shield|bubbling|pooling}-?{color|fire|charm|acid|death|holy|blood|frost|slime|smoke|water|magic}
+```
+
+**Stop all persistent effects on selected tokens:**
+```
+!vfx stop
+```
 
 ---
 
@@ -8,23 +22,15 @@ This macro and script allow you to apply a persistent visual effect (VFX) to a t
 
 1. **Install the persistent_vfx.js script** in your Roll20 API scripts.
 2. **Select one or more tokens** on your tabletop.
-3. **Run the macro below** to start a persistent VFX:
-
-```
-!vfx persist <fx_type>
-```
-
-Replace `<fx_type>` with a valid Roll20 VFX name (e.g., `burn-holy`, `burn-fire`, `magic-missile`, `explosion-fire`, etc.).
-
-**Example:**
-```
-!vfx persist shield-holy
-```
-
-4. **To stop the effect** on selected tokens, use:
-```
-!vfx stop
-```
+3. **Run the Start macro above**. You will be prompted to choose:
+	- **effect**: burn, glow, sparkle, shield, bubbling, pooling
+	- **color**: fire, charm, acid, death, holy, blood, frost, slime, smoke, water, magic
+   
+	For example, choosing `burn` and `holy` will send:
+	```
+	!vfx persist burn-holy
+	```
+4. **To stop the effect** on selected tokens, use the Stop macro above.
 
 ---
 
@@ -33,17 +39,3 @@ Replace `<fx_type>` with a valid Roll20 VFX name (e.g., `burn-holy`, `burn-fire`
 - Only one persistent effect per token is supported at a time.
 - You can apply effects to multiple tokens by selecting them all before running the macro.
 - To see available VFX types, check the Roll20 API documentation or experiment with names like `burn-holy`, `burn-fire`, `magic-missile`, etc.
-
----
-
-## Example Macros
-
-**Start a persistent holy fire effect:**
-```
-!vfx persist burn-holy
-```
-
-**Stop all persistent effects on selected tokens:**
-```
-!vfx stop
-```
