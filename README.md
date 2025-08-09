@@ -17,16 +17,16 @@ This repository contains custom API scripts and macros designed to enhance and a
 
 Scripts in the `functioning` folder are stable and ready for use. Scripts in the `in progress` folder may or may not be functional and are under active development. Click a script name below to view its macro and documentation:
 
-- [Detection Script](working/detection_macro.md)
-- [Experience Automation](working/experience_automation_macro.md)
-- [Gathering Resources](working/gathering_resources_macro.md)
-- [Initiative Script](in%20progress/Initiative.md)
-- [Loot Generator](working/loot_generator_macro.md)
-- [Monster Attack](working/MonsterAttack.md)
-- [Protections](in%20progress/Protections_macro.md)
-- [Rebalance](working/Rebalance.md)
-- [Trap Triggered](working/trap_trigger_macro.md)
-- [Twilight Cleric](in%20progress/TwilightCleric_macro.md)
+- [Detection Script](functioning/detection_macro.md)
+- [Experience Automation](functioning/experience_automation_macro.md)
+- [Gathering Resources](functioning/gathering_resources_macro.md)
+- [Initiative Script](functioning/Initiative.md)
+- [Loot Generator](functioning/loot_generator_macro.md)
+- [Monster Attack](functioning/MonsterAttack.md)
+- [Protections](functioning/Protections_macro.md)
+- [Rebalance](functioning/Rebalance.md)
+- [Trap Triggered](functioning/trap_trigger_macro.md)
+- [Twilight Cleric](functioning/TwilightCleric_macro.md)
 
 ---
 
