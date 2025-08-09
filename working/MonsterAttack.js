@@ -1,3 +1,56 @@
+// --- Turn Tracker Listener: Assign/Remove Attacker Marker and Attribute ---
+on('change:campaign:turnorder', function(obj, prev) {
+    let turnorder;
+    try {
+        turnorder = JSON.parse(obj.get('turnorder') || '[]');
+    } catch (e) {
+        turnorder = [];
+    }
+    if (!Array.isArray(turnorder) || turnorder.length === 0) return;
+    // Get the current turn's token id
+    let currentId = turnorder[0] && turnorder[0].id;
+    if (!currentId) return;
+    // Remove 'fist' marker and attacker=true from all tokens on the current page(s)
+    let allTokens = findObjs({type:'graphic', subtype:'token'});
+    allTokens.forEach(token => {
+        let markers = (token.get('statusmarkers') || '').split(',').filter(Boolean);
+        let hadFist = markers.includes('fist');
+        if (hadFist && token.id !== currentId) {
+            markers = markers.filter(m => m !== 'fist');
+            token.set('statusmarkers', markers.join(','));
+        }
+        // Remove attacker attribute from all tokens except current
+        let charId = token.get('represents');
+        if (charId) {
+            let attr = findObjs({type:'attribute', characterid:charId, name:'attacker'})[0];
+            if (attr && token.id !== currentId) {
+                attr.set('current', 'false');
+            }
+        }
+    });
+    // Assign 'fist' marker and attacker=true to the current token
+    let currentToken = getObj('graphic', currentId);
+    if (currentToken) {
+        let markers = (currentToken.get('statusmarkers') || '').split(',').filter(Boolean);
+        if (!markers.includes('fist')) {
+            markers.push('fist');
+            currentToken.set('statusmarkers', markers.join(','));
+        }
+        let charId = currentToken.get('represents');
+        if (charId) {
+            let attr = findObjs({type:'attribute', characterid:charId, name:'attacker'})[0];
+            if (!attr) {
+                createObj('attribute', {
+                    characterid: charId,
+                    name: 'attacker',
+                    current: 'true'
+                });
+            } else {
+                attr.set('current', 'true');
+            }
+        }
+    }
+});
 // filename: MonsterAttack.js
 // Roll20 API script for automating monster attacks and spell effects (legacy sheets only)
 // Usage: Select a monster token and one or more player tokens, then run !monsterattack
@@ -195,23 +248,23 @@ on('chat:message', function(msg) {
         sendChat('MonsterAttack', `/w gm No valid tokens selected.`);
         return;
     }
-    // Find all with attacker=true
-    let attackers = selectedTokens.filter(({token, character}) => {
-        let attr = findObjs({type:'attribute', characterid:character.id, name:'attacker'})[0];
-        return attr && (attr.get('current') || '').toLowerCase() === 'true';
+    // Find attacker by 'fist' status marker
+    let attackers = selectedTokens.filter(({token}) => {
+        let markers = (token.get('statusmarkers') || '').split(',');
+        return markers.includes('fist');
     });
     if (attackers.length > 1) {
-        sendChat('MonsterAttack', `/w gm Too many attackers in the group. Only one token should have the 'attacker' attribute set to true.`);
+        sendChat('MonsterAttack', `/w gm Too many attackers in the group. Only one token should have the 'fist' marker.`);
         return;
     }
     if (attackers.length === 0) {
-        sendChat('MonsterAttack', `/w gm No attacker found. Please set one selected token's 'attacker' attribute to true.`);
+        sendChat('MonsterAttack', `/w gm No attacker found. Please set one selected token's 'fist' marker.`);
         return;
     }
     let sourceToken = attackers[0].token;
     let sourceChar = attackers[0].character;
     // All other selected tokens are targets
-    let targetTokens = selectedTokens.filter(({token, character}) => token.id !== sourceToken.id);
+    let targetTokens = selectedTokens.filter(({token}) => token.id !== sourceToken.id);
     if (targetTokens.length === 0) {
         sendChat('MonsterAttack', `/w gm No valid target tokens selected (must select at least one target in addition to the attacker).`);
         return;
