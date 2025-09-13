@@ -1,3 +1,87 @@
+// --- Treasure Hoard Generation ---
+on('chat:message', function(msg) {
+    if (msg.type !== 'api' || !msg.content.startsWith('!hoard')) return;
+
+    if (!msg.selected || msg.selected.length === 0) {
+        sendChat('Loot Generator', `/w gm Please select one or more tokens to generate a treasure hoard.`);
+        return;
+    }
+
+    // Find highest CR among selected tokens
+    let highestCR = 0;
+    let playerCount = 0;
+    msg.selected.forEach(selected => {
+        let token = getObj('graphic', selected._id);
+        if (!token) return;
+        let character = getObj('character', token.get('represents'));
+        if (!character) return;
+        let crAttr = findObjs({type:'attribute', characterid:character.id, name:'npc_challenge'})[0];
+        if (!crAttr) {
+            playerCount++;
+            return;
+        }
+        let cr = parseFloat(crAttr.get('current'));
+        if (!isNaN(cr) && cr > highestCR) highestCR = cr;
+    });
+
+    // Determine hoard table row
+    let hoardRow = null;
+    let hoardTable = [
+        { crMin: 0, crMax: 4, gold: () => randomInt(1,4,2)*100, items: () => Math.max(0, randomInt(1,4,1)-1) },
+        { crMin: 5, crMax: 10, gold: () => randomInt(1,10,8)*100, items: () => randomInt(1,3,1) },
+        { crMin: 11, crMax: 16, gold: () => randomInt(1,8,8)*10000, items: () => randomInt(1,4,1) },
+        { crMin: 17, crMax: 100, gold: () => randomInt(1,10,6)*10000, items: () => randomInt(1,6,1) }
+    ];
+    hoardRow = hoardTable.find(row => highestCR >= row.crMin && highestCR <= row.crMax);
+    if (!hoardRow) hoardRow = hoardTable[0];
+
+    // Generate gold and magic items
+    let totalGold = hoardRow.gold();
+    let numItems = hoardRow.items();
+    let magicItems = [];
+    for (let i = 0; i < numItems; i++) {
+        // Determine rarity for each item
+        let rarityRow = MAGIC_RARITY_TABLE.find(row => highestCR >= row.crMin && highestCR <= row.crMax);
+        let rarityRoll = Math.random()*100;
+        let rarityIdx = 0;
+        let raritySum = 0;
+        for (let j=0; j<MAGIC_RARITIES.length; j++) {
+            raritySum += rarityRow.rarity[j];
+            if (rarityRoll < raritySum) { rarityIdx = j; break; }
+        }
+        let rarity = MAGIC_RARITIES[rarityIdx];
+        // Determine theme
+        let themeIdx = Math.floor(Math.random()*MAGIC_THEMES.length);
+        let theme = MAGIC_THEMES[themeIdx];
+        // Use items.js reference to get actual item
+        let itemName = null;
+        if (typeof getRandomItem === 'function') {
+            itemName = getRandomItem(theme, rarity);
+        }
+        if (!itemName) {
+            itemName = `${rarity} ${theme} Item`;
+        }
+        magicItems.push(itemName);
+    }
+
+    // Calculate per-person split
+    let partySize = playerCount;
+    let goldSplit = partySize > 0 ? Math.ceil(totalGold/partySize) : 0;
+    let goldSummary = `${totalGold.toLocaleString()} gp`;
+    if (partySize > 0) {
+        goldSummary += ` (${goldSplit.toLocaleString()} gp per person)`;
+    }
+
+    // Build magic item list
+    let magicList = magicItems.length > 0 ? magicItems.map(item => `• ${item}`).join('<br>') : 'None';
+
+    // Build chat output
+    let output = `&{template:npcaction}{{rname=Treasure Hoard}}{{name=Hoard Summary}}` +
+        `{{description=**Total Gold:** ${goldSummary}<br>` +
+        `**Magic Items:**<br>${magicList}}}`;
+
+    sendChat('Loot Generator', output);
+});
 // filename: loot_generator.js
 // Roll20 API script for generating treasure from selected monsters
 // requires items.js for magic item generation

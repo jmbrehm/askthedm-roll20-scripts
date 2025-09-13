@@ -1,3 +1,56 @@
+# Treasure Hoard Macro
+
+```
+!hoard
+```
+
+---
+
+## How to Use the Hoard Macro
+
+1. Select any number of tokens (monsters and/or player characters).
+2. Run the macro above (or click your Hoard macro button).
+3. The script will:
+   - Find the highest CR among all selected tokens.
+   - Generate a treasure hoard based on the highest CR, using the table below for gold and number of magic items.
+   - For each magic item, determine its rarity and theme individually, and generate the item name.
+   - Count the number of player tokens selected (those without a CR attribute) to split the gold evenly.
+   - Post a summary in chat showing total gold, per-person split, and all magic items found.
+
+---
+
+## Treasure Hoard Generation Rules
+
+| CR Range | Gold                 | Magic Items |
+|----------|----------------------|-------------|
+| 0–4      | 2d4 × 100 gp         | 1d4 − 1     |
+| 5–10     | 8d10 × 100 gp        | 1d3         |
+| 11–16    | 8d8 × 10,000 gp      | 1d4         |
+| 17+      | 6d10 × 10,000 gp     | 1d6         |
+
+Each magic item is rolled for rarity and theme individually.
+
+---
+
+## Example Output
+
+```
+&{template:npcaction}{{rname=Treasure Hoard}}{{name=Hoard Summary}}
+{{description=**Total Gold:** 4,200 gp (1,050 gp per person)
+
+**Magic Items:**
+• Rare Arcana Item
+• Uncommon Armament Item
+• Common Relic Item}}
+```
+
+---
+
+## Notes
+- The hoard macro always generates at least gold, and a number of magic items based on the table above (no random chance for magic items).
+- Magic item names are generated from your item tables, with rarity and theme determined for each item.
+- Party size is auto-counted from selected player tokens (those without a CR attribute).
+- No automatic distribution or inventory changes; the script only posts a summary for the party in chat.
 # Loot Generator Macro
 
 ```
