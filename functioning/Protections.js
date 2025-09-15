@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - Protections.js - Loaded (version 2.0)');
+});
 // filename: Protections.js
 // Roll20 API script for adding/removing resistances and immunities to selected tokens
 // Usage: Select one or more tokens, then run the macro (see Protections_macro.md)

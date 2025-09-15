@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - loot_generator.js - Loaded (version 2.0)');
+});
 // --- Treasure Hoard Generation ---
 on('chat:message', function(msg) {
     if (msg.type !== 'api' || !msg.content.startsWith('!hoard')) return;

@@ -1,3 +1,7 @@
+on('ready', function() {
+            log('askthedm - Rebalance.js - Loaded (version 2.0)');
+        });
+
 on('chat:message', function(msg) {
     if (msg.type !== 'api' || !msg.content.startsWith('!rebalance')) return;
     if (!msg.selected || msg.selected.length === 0) {

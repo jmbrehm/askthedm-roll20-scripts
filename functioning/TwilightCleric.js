@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - TwilightCleric.js - Loaded (version 2.0)');
+});
 // (Token marker and all references to flying-flag removed by user request. The aura is now the only visual indicator for Twilight Sanctuary range.)
 // Helper: get distance between two tokens (in feet, using page scale)
 function getDistanceBetweenTokens(tokenA, tokenB) {

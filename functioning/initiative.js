@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - initiative.js - Loaded (version 2.0)');
+});
 // Roll20 API Script: Initiative Automation (Selected Tokens Only)
 // Usage: !combat
 // 1. Checks the campaign initiativepage property. If false, sets it to true to open the turn tracker.

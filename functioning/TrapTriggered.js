@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - TrapTriggered.js - Loaded (version 2.0)');
+});
 // filename: trap_reference.js
 // Level-based trap system with Nuisance and Deadly categories
 

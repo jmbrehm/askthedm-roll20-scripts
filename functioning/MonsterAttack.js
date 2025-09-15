@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - MonsterAttack.js - Loaded (version 2.0)');
+});
 // --- Turn Tracker Listener: Assign/Remove Attacker Marker and Attribute ---
 on('change:campaign:turnorder', function(obj, prev) {
     let turnorder;

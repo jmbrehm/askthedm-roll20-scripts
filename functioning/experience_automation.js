@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - experience_automation.js - Loaded (version 2.0)');
+});
 // filename: experience_automation.js
 // Automatic experience point calculation and distribution system
 

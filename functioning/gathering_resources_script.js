@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - gathering_resources_script.js - Loaded (version 2.0)');
+});
 // filename: resourceGathering.js
 on('chat:message', function(msg) {
     if (msg.type !== 'api' || !msg.content.startsWith('!gather')) return;

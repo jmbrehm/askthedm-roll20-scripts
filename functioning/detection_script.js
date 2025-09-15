@@ -1,3 +1,6 @@
+on('ready', function() {
+    log('askthedm - detection_script.js - Loaded (version 2.0)');
+});
 // filename: detection_script.js
 on('chat:message', function(msg) {
     if (msg.type !== 'api' || !msg.content.startsWith('!detect')) return;
