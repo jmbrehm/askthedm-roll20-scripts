@@ -1,5 +1,5 @@
 on('ready', function() {
-    log('askthedm - MonsterAttack.js - Loaded (version 2.0)');
+    log('askthedm - MonsterAttack.js - Loaded (version 2.01)');
 });
 // --- Turn Tracker Listener: Assign/Remove Attacker Marker and Attribute ---
 on('change:campaign:turnorder', function(obj, prev) {
@@ -13,8 +13,12 @@ on('change:campaign:turnorder', function(obj, prev) {
     // Get the current turn's token id
     let currentId = turnorder[0] && turnorder[0].id;
     if (!currentId) return;
-    // Remove 'fist' marker and attacker=true from all tokens on the current page(s)
-    let allTokens = findObjs({type:'graphic', subtype:'token'});
+    // Get the current token and its page
+    let currentToken = getObj('graphic', currentId);
+    let currentPageId = currentToken ? currentToken.get('pageid') : null;
+    if (!currentPageId) return;
+    // Only process tokens on the same page as the current token
+    let allTokens = findObjs({type:'graphic', subtype:'token', pageid: currentPageId});
     allTokens.forEach(token => {
         let markers = (token.get('statusmarkers') || '').split(',').filter(Boolean);
         let hadFist = markers.includes('fist');
@@ -32,7 +36,6 @@ on('change:campaign:turnorder', function(obj, prev) {
         }
     });
     // Assign 'fist' marker and attacker=true to the current token
-    let currentToken = getObj('graphic', currentId);
     if (currentToken) {
         let markers = (currentToken.get('statusmarkers') || '').split(',').filter(Boolean);
         if (!markers.includes('fist')) {
