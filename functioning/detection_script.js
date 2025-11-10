@@ -1,7 +1,7 @@
 
 // askTheDM - detection_script.js - Overhauled version
 on('ready', function() {
-    log('askthedm - detection_script.js - loaded (v3.0)');
+    log('askthedm - detection_script.js - loaded (v3.1)');
 });
 
 // Overhauled detection script with blank description support, difficulty in whisper, and inspo reroll handling
@@ -52,12 +52,16 @@ function runDetection({msg, description, difficulty, selected}) {
         let perceptionAttr = findObjs({type:'attribute', characterid:charId, name:'perception_bonus'})[0];
         let perceptionBonus = perceptionAttr ? parseInt(perceptionAttr.get('current'), 10) : 0;
 
-        // Get advantage toggle
-        let advAttr = findObjs({type:'attribute', characterid:charId, name:'advantagetoggle'})[0];
-        let advState = advAttr ? (advAttr.get('current') || '').toLowerCase() : 'normal';
-        let rollType = 'normal';
-        if (advState.indexOf('advantage') !== -1) rollType = 'advantage';
-        else if (advState.indexOf('disadvantage') !== -1) rollType = 'disadvantage';
+    // Get advantage toggle and match specific template tokens for normal/advantage/disadvantage
+    let advAttr = findObjs({type:'attribute', characterid:charId, name:'advantagetoggle'})[0];
+    let advStateRaw = advAttr ? (advAttr.get('current') || '') : '';
+    let advState = advStateRaw.toLowerCase();
+    let rollType = 'normal';
+    // Match explicit template tokens like {{advantage=1}}, {{disadvantage=1}}, {{normal=1}}
+    // Use the raw string for regex matching to preserve braces and spacing.
+    if (/\{\{\s*advantage\s*=\s*1\s*\}\}/i.test(advStateRaw)) rollType = 'advantage';
+    else if (/\{\{\s*disadvantage\s*=\s*1\s*\}\}/i.test(advStateRaw)) rollType = 'disadvantage';
+    else if (/\{\{\s*normal\s*=\s*1\s*\}\}/i.test(advStateRaw)) rollType = 'normal';
 
         // Get global_skill_mod and parse dice/numeric modifiers using improved regex
         let globalSkillAttr = findObjs({type:'attribute', characterid:charId, name:'global_skill_mod'})[0];
@@ -122,28 +126,48 @@ function runDetection({msg, description, difficulty, selected}) {
         let result = Math.max(passive, total);
         let passed = result >= dc;
 
+    // Check for inspiration (on = available, 0 = none)
+    let inspAttr = findObjs({type:'attribute', characterid:charId, name:'inspiration'})[0];
+    let hasInspiration = inspAttr && (inspAttr.get('current') === 'on' || inspAttr.get('current') === '1' || inspAttr.get('current') === 1);
+
         
-        // Build output string
+        // Build output strings (we create separate, shorter lines for pass vs fail per user request)
         let rollLabel = rollType;
-        let perceptionLine = '';
-        let diffLabel = difficulty;
+        let diffLabel = difficulty; // still available for DM summary but removed from player whispers
+
+        // For pass whispers: remove the difficulty label but keep roll type and perception info
+        let perceptionLineForPass = '';
         if (result === passive) {
-            perceptionLine = `(${diffLabel} - ${rollLabel} - perception: ${result} (passive high))`;
+            perceptionLineForPass = `(${rollLabel} - perception: ${result} (passive high))`;
         } else {
             let rollBreakdown = `${d20Detail} ${modString}`;
-            perceptionLine = `(${diffLabel} - ${rollLabel} - perception: ${result} (${rollBreakdown}))`;
+            perceptionLineForPass = `(${rollLabel} - perception: ${result} (${rollBreakdown}))`;
+        }
+
+        // For failure whispers when the character has inspiration: remove difficulty, keep roll type and result
+        let perceptionLineForFailInspo = '';
+        if (result === passive) {
+            perceptionLineForFailInspo = `(${rollLabel} - perception: ${result} (passive high))`;
+        } else {
+            // keep only roll type and final result (no detailed breakdown)
+            perceptionLineForFailInspo = `(${rollLabel} - perception: ${result})`;
         }
 
         // Build whisper message
         let whisperTo = getPlayerForCharacter(charId);
         let message = '';
         if (passed) {
-            message = `${perceptionLine} You've noticed "${description}" and you're not certain whether the others have seen it.`;
+            // Pass: send the shorter message without difficulty
+            message = `${perceptionLineForPass} You've noticed "${description}" and you're not certain whether the others have seen it.`;
+            if (whisperTo) {
+                sendChat('Perception', `/w "${whisperTo}" ${message}`);
+            }
         } else {
-            message = `${perceptionLine} You may have missed something.`;
-        }
-        if (whisperTo) {
-            sendChat('Perception', `/w "${whisperTo}" ${message}`);
+            // Fail: only whisper if they have inspiration; message removes difficulty, keeps roll type/result
+            if (hasInspiration && whisperTo) {
+                message = `${perceptionLineForFailInspo} You may have missed something; but could use inspiration to look again`;
+                sendChat('Perception', `/w "${whisperTo}" ${message}`);
+            }
         }
 
     // Add to DM summary (just PASS/FAIL and roll total)
