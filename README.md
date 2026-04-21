@@ -39,7 +39,6 @@ Legacy scripts are kept for reference and ongoing campaign continuity, but they 
 
 - [Detection](functioning/detection_macro.md)
 - [Experience Automation](functioning/experience_automation_macro.md)
-- [Gathering Resources](functioning/gathering_resources_macro.md)
 - [Initiative](functioning/initiative.md)
 - [Loot Generator](functioning/loot_generator_macro.md)
 - [Monster Attack](functioning/MonsterAttack.md)
