@@ -10,49 +10,44 @@ This repository contains custom API scripts and macros designed to enhance and a
 
 ---
 
+## Project Navigation
 
+- [Current (Beacon)](#current-beacon)
+- [Legacy](#legacy)
 
+---
 
-## Functioning Scripts (Table of Contents)
+## Current (Beacon)
 
-Scripts in the `functioning` folder are stable and ready for use. Scripts in the `in progress` folder may or may not be functional and are under active development. Click a script name below to view its macro and documentation:
+This section is for actively maintained and Beacon-compatible scripts.
 
-- [Detection Script](functioning/detection_macro.md)
+The new Beacon-ready scripts will be added in the beacon/functioning folder as they are completed.
+
+### Functioning Scripts (Beacon)
+
+- Coming soon.
+
+---
+
+## Legacy
+
+This section contains pre-Beacon scripts from the original workflow.
+
+Legacy scripts are kept for reference and ongoing campaign continuity, but they may receive limited updates as development focus shifts to Beacon compatibility.
+
+### Functioning Scripts (Legacy)
+
+- [Detection](functioning/detection_macro.md)
 - [Experience Automation](functioning/experience_automation_macro.md)
 - [Gathering Resources](functioning/gathering_resources_macro.md)
-- [Initiative Script](functioning/initiative.md)
+- [Initiative](functioning/initiative.md)
 - [Loot Generator](functioning/loot_generator_macro.md)
 - [Monster Attack](functioning/MonsterAttack.md)
 - [Protections](functioning/Protections_macro.md)
 - [Rebalance](functioning/Rebalance.md)
-- [Trap Triggered](functioning/trap_trigger_macro.md)
+- [Trap Trigger](functioning/trap_trigger_macro.md)
 - [Twilight Cleric](functioning/TwilightCleric_macro.md)
 
 ---
 
-## Dependency Scripts
-
-Scripts in the `dependencies` folder provide data or reference tables used by the main automation scripts:
-
-- **askthedm_CR_attribute_reference.js**: Provides the mapping of Challenge Rating (CR) to XP values and other monster stat references.
-- **askthedm_DamageToEffect_reference.js**: Maps damage types to their default saving throw abilities and visual effect components for use in trap and spell automation.
-- **askthedm_item_reference.js**: Contains tables of magic items by category, rarity, and theme for loot generation scripts.
-- **askthedm_DarkvisionBySpecies_reference.js**: Provides a lookup table for default darkvision and vision settings by species/race, used for robust vision automation (e.g., Eyes of Night, restoring default vision). Integrates with scripts like TwilightCleric.js for accurate vision restoration.
-
----
-
----
-
-## In Progress
-
-Scripts in the `in progress` folder are unfinished, experimental, under development:
-
-- **crafting_script.js**: Will automate crafting checks and progress tracking for player characters.
-- **fireball.js**: Automates fireball spell effects, including save rolls and area damage.
-- **spell_database.js**: reference script used as dependency for other scripts
-- **spell_preparation.js**: Will help manage spell preparation and tracking for spellcasters.
-- **spellcasting.js**: Automates spellcasting actions, including resource tracking and spell slot management.
-
----
-
-Feel free to use, modify, or contribute to these scripts. Always back up your game and test scripts before use!
+Feel free to use, modify, or contribute to these scripts. Always back up your game and test scripts before use.
